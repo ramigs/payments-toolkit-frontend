@@ -1,48 +1,116 @@
 # payments-toolkit-frontend
 
-This template should help get you started developing with Vue 3 in Vite.
+A Vue 3 SPA, built on [TanStack AI](https://tanstack.com/ai)'s Vue client
+(`@tanstack/ai-vue`), that talks to
+[payments-toolkit-agent](https://github.com/ramigs/payments-toolkit-agent)
+over [AG-UI](https://ag-ui.com) and shows an agent's tool calls live in the
+browser as they happen — "🔧 calling `validate_iban(iban: DE89…)` →
+`valid: true`" — instead of a spinner that resolves to a final answer. See
+[PLAN.md](./PLAN.md) for the full step-by-step walkthrough, including the
+reasoning behind each design decision (and a couple of interesting bugs
+found along the way).
 
-## Recommended IDE Setup
+This is step 2 of 2 in a three-repo series:
+[payments-toolkit-mcp](https://github.com/ramigs/payments-toolkit-mcp) (the
+MCP server exposing the validation tools) →
+[payments-toolkit-agent](https://github.com/ramigs/payments-toolkit-agent)
+(the ADK-based agent backend, step 1) → this repo (the frontend, step 2).
 
-[VS Code](https://code.visualstudio.com/) + [Vue (Official)](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur).
+## Prerequisites
 
-## Recommended Browser Setup
+- Node.js 18+ (project developed against v24)
+- [pnpm](https://pnpm.io)
 
-- Chromium-based browsers (Chrome, Edge, Brave, etc.):
-  - [Vue.js devtools](https://chromewebstore.google.com/detail/vuejs-devtools/nhdogjmejiglipccpnnnanhbledajbpd)
-  - [Turn on Custom Object Formatter in Chrome DevTools](http://bit.ly/object-formatters)
-- Firefox:
-  - [Vue.js devtools](https://addons.mozilla.org/en-US/firefox/addon/vue-js-devtools/)
-  - [Turn on Custom Object Formatter in Firefox DevTools](https://fxdx.dev/firefox-devtools-custom-object-formatters/)
+Running against the real backend also needs
+[`payments-toolkit-agent`](https://github.com/ramigs/payments-toolkit-agent)
+set up and its `pnpm run start:http` running locally (see that repo's
+README) — or use the local mock described below to work on the UI without
+it.
 
-## Type Support for `.vue` Imports in TS
+## Setup
 
-TypeScript cannot handle type information for `.vue` imports by default, so we replace the `tsc` CLI with `vue-tsc` for type checking. In editors, we need [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) to make the TypeScript language service aware of `.vue` types.
-
-## Customize configuration
-
-See [Vite Configuration Reference](https://vite.dev/config/).
-
-## Project Setup
-
-```sh
+```bash
 pnpm install
 ```
 
-### Compile and Hot-Reload for Development
+## Usage
 
-```sh
+Start the dev server:
+
+```bash
 pnpm dev
 ```
 
-### Type-Check, Compile and Minify for Production
+By default `src/composables/useAgentChat.ts` points at the real backend,
+`http://localhost:3001/chat` (`payments-toolkit-agent`'s `pnpm run
+start:http`, run separately). Type a prompt like "Is
+DE89370400440532013000 a valid IBAN?" or "Check this card and tell me the
+network: 4111111111111111" — the agent's tool calls, arguments, and results
+render live, followed by its final answer.
 
-```sh
-pnpm build
+### Running against the local mock instead
+
+A tiny hand-rolled AG-UI SSE server (`mocks/mock-ag-ui-server.ts`) stands
+in for the real backend — useful for working on the UI without a Gemini
+API key or the agent/MCP processes running. It replays three fixed
+scenarios based on a keyword in the prompt: `iban` → a valid-IBAN turn with
+a `validate_iban` tool call, `card` → an invalid-card turn with a
+`validate_card_number` tool call, anything else → a declined/out-of-scope
+turn with no tool call.
+
+```bash
+pnpm run mock
 ```
 
-### Lint with [ESLint](https://eslint.org/)
+Then change `AGENT_CHAT_URL` in `src/composables/useAgentChat.ts` from
+`http://localhost:3001/chat` to `http://localhost:8787/chat` and restart
+the dev server (or just edit and save — Vite hot-reloads it).
 
-```sh
-pnpm lint
+### Type-checking, linting, formatting
+
+```bash
+pnpm run type-check
+pnpm run lint     # oxlint + eslint, both --fix
+pnpm run format   # prettier --write
 ```
+
+## How the tool-call visibility works
+
+`useAgentChat.ts` wraps `@tanstack/ai-vue`'s `useChat`, pointed at an AG-UI
+SSE endpoint via `fetchServerSentEvents`. As tool-call and text events
+stream in, `@tanstack/ai`'s client assembles them into typed message
+parts — `tool-call`, `tool-result`, `text` — on the current assistant
+message. `ToolCallTrace.vue` renders the `tool-call`/`tool-result` parts
+live, pairing each call with its result by `toolCallId`;
+`MessageList.vue` renders the accompanying `text` parts as the
+conversation.
+
+## Project structure
+
+```
+src/
+  App.vue                     # wires ChatInput + MessageList together via useAgentChat
+  components/
+    ChatInput.vue              # prompt box + send button
+    MessageList.vue            # renders the conversation (user + agent turns)
+    ToolCallTrace.vue          # live tool-call visibility: name, args, result, per message
+  composables/
+    useAgentChat.ts             # wraps @tanstack/ai-vue's useChat, points at the backend (or mock)
+mocks/
+  mock-ag-ui-server.ts          # local dev server emitting hand-written AG-UI SSE events
+```
+
+## Scope
+
+This is a deliberate first iteration, not an unfinished one:
+
+- No multi-turn conversation persistence — the backend is single-turn per
+  request, so this frontend is too
+- No cancel/interrupt control for an in-flight turn — blocked on the
+  backend supporting mid-turn cancellation
+- No production deployment — local-first, matching the backend's own
+  scope for this phase
+- No auth/guardrails — same deferral as the backend
+
+See the "Fast-follows" section of [PLAN.md](./PLAN.md) for what's tracked
+for later.
