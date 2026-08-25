@@ -13,7 +13,7 @@ function handleSend(message: string) {
 <template>
   <main class="chat">
     <h1>payments-toolkit</h1>
-    <MessageList :messages />
+    <MessageList :messages :loading="isLoading" />
     <p v-if="error" class="error">{{ error.message }}</p>
     <ChatInput :disabled="isLoading" @send="handleSend" />
   </main>
