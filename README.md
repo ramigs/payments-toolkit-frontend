@@ -18,7 +18,7 @@ MCP server exposing the validation tools) →
 
 ## Prerequisites
 
-- Node.js 18+ (project developed against v24)
+- Node.js `^22.18.0 || >=24.12.0` (`.nvmrc` pins v24)
 - [pnpm](https://pnpm.io)
 
 Running against the real backend also needs
@@ -48,15 +48,29 @@ DE89370400440532013000 a valid IBAN?" or "Check this card and tell me the
 network: 4111111111111111" — the agent's tool calls, arguments, and results
 render live, followed by its final answer.
 
+While a turn is streaming, the send button becomes a **Stop** button. It
+aborts the SSE fetch and also calls the backend's
+`POST /chat/:runId/cancel` side-channel, so the model request is killed
+even if a proxy keeps the socket open (see `payments-toolkit-agent`'s
+PLAN.md, step 10).
+
 ### Running against the local mock instead
 
 A tiny hand-rolled AG-UI SSE server (`mocks/mock-ag-ui-server.ts`) stands
 in for the real backend — useful for working on the UI without a Gemini
-API key or the agent/MCP processes running. It replays three fixed
-scenarios based on a keyword in the prompt: `iban` → a valid-IBAN turn with
-a `validate_iban` tool call, `card` → an invalid-card turn with a
-`validate_card_number` tool call, anything else → a declined/out-of-scope
-turn with no tool call.
+API key or the agent/MCP processes running. It replays four fixed
+scenarios based on a keyword in the prompt:
+
+- `iban` → a valid-IBAN turn with a `validate_iban` tool call
+- `type` / `network` → a `detect_card_type` turn that also renders an
+  [MCP Apps](https://github.com/modelcontextprotocol) card-preview widget
+  (forwards the real built widget from `../payments-toolkit-mcp/dist/ui/`)
+- `card` → an invalid-card turn with a `validate_card_number` tool call
+- anything else → a declined/out-of-scope turn with no tool call
+
+It also mirrors the real backend's cancel surface
+(`POST /chat/:runId/cancel` plus client-disconnect detection), so the Stop
+button works against the mock too.
 
 ```bash
 pnpm run mock
@@ -85,15 +99,22 @@ live, pairing each call with its result by `toolCallId`;
 `MessageList.vue` renders the accompanying `text` parts as the
 conversation.
 
+When a tool advertises an MCP Apps UI widget, the backend forwards it as a
+`CUSTOM` `ui-resource` event, which `@tanstack/ai` reconciles into a
+`ui-resource` message part. `McpAppView.vue` hosts that widget in a
+sandboxed iframe and runs the `@modelcontextprotocol/ext-apps` init
+handshake, then feeds the tool result in so the widget can paint itself.
+
 ## Project structure
 
 ```
 src/
   App.vue                     # wires ChatInput + MessageList together via useAgentChat
   components/
-    ChatInput.vue              # prompt box + send button
+    ChatInput.vue              # prompt box; send button becomes Stop while a turn streams
     MessageList.vue            # renders the conversation (user + agent turns)
     ToolCallTrace.vue          # live tool-call visibility: name, args, result, per message
+    McpAppView.vue             # hosts an MCP Apps `ui://` widget in a sandboxed iframe
   composables/
     useAgentChat.ts             # wraps @tanstack/ai-vue's useChat, points at the backend (or mock)
 mocks/
@@ -106,8 +127,6 @@ This is a deliberate first iteration, not an unfinished one:
 
 - No multi-turn conversation persistence — the backend is single-turn per
   request, so this frontend is too
-- No cancel/interrupt control for an in-flight turn — blocked on the
-  backend supporting mid-turn cancellation
 - No production deployment — local-first, matching the backend's own
   scope for this phase
 - No auth/guardrails — same deferral as the backend

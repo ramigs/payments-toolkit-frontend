@@ -1,7 +1,7 @@
 # PLAN: payments-toolkit-frontend
 
-A Vue/Nuxt frontend, built on [TanStack AI](https://tanstack.com/ai)'s Vue
-client, that talks to
+A Vue 3 SPA (plain Vite, no SSR/routing), built on
+[TanStack AI](https://tanstack.com/ai)'s Vue client, that talks to
 [payments-toolkit-agent](https://github.com/ramigs/payments-toolkit-agent)
 over AG-UI and shows a user, live in the browser, an agent deciding to call
 `validate_card_number` or `detect_card_type` or `validate_iban`, the
@@ -11,30 +11,18 @@ step 1 (`payments-toolkit-agent`) is the backend this consumes. Based on
 the original brainstorming in `ag-ui.md` plus everything confirmed while
 building step 1 (see "What we learned building the backend" below).
 
-## Blocking dependency — read this first
+## Backend dependency (resolved)
 
-`payments-toolkit-agent`'s `POST /chat` endpoint exists and streams SSE
-today, but **not yet in AG-UI's event format** — it emits this repo's own
-simple shapes (`tool_call`/`tool_result`/`content`/`error`/`done`). A real
-AG-UI client (TanStack AI's `useChat` + `fetchServerSentEvents`, per the
-Quick Start below) cannot correctly parse that stream as-is.
+`payments-toolkit-agent`'s `POST /chat` originally streamed this repo's own
+event shapes (`tool_call`/`tool_result`/`content`/`error`/`done`), which a
+real AG-UI client can't parse. The backend's hand-written AG-UI translator
+(its PLAN.md, step 8) landed against `@ag-ui/core`'s official types — no
+ADK↔AG-UI bridge exists for TypeScript, only Python's `ag_ui_adk` — and
+step 5 below swapped this frontend onto it. The one-line URL swap held: the
+mock and the real backend are interchangeable.
 
-Turning it into real AG-UI events is tracked as a fast-follow in
-`payments-toolkit-agent/PLAN.md`, not here — this is a frontend-only plan,
-and that work happens in the backend repo. Confirmed while investigating
-this: no ready-made ADK↔AG-UI bridge exists for TypeScript (only Python's
-`ag_ui_adk`), so the backend's event mapping has to be written by hand
-against `@ag-ui/core`'s official types. See that repo's PLAN.md for the
-full investigation and decision.
-
-**Until that lands**, this project's early steps (scaffolding, UI shell,
-tool-call-visibility rendering) can be built and iterated against a local
-mock AG-UI SSE endpoint (see step 2) — genuine AG-UI events are cheap to
-fake by hand for a handful of fixed scenarios, so frontend work doesn't
-have to sit idle waiting on the backend. Swapping the mock for the real
-backend endpoint should be a one-line change (just the URL
-`fetchServerSentEvents` points at) if both sides are honestly speaking
-AG-UI.
+The local mock AG-UI SSE endpoint (step 2) is still maintained for offline
+frontend work — no Gemini key or agent/MCP processes needed.
 
 ## What we learned building the backend
 
@@ -51,13 +39,13 @@ Worth carrying into this plan rather than re-discovering:
   TanStack's server-side helpers). So the backend doesn't need to adopt
   any TanStack-specific code — it just needs to emit spec-correct AG-UI
   events, and this frontend's client will understand it.
-- **AG-UI is pre-1.0** (`@ag-ui/core` at `0.1.1-canary.beta.0` in this
-  repo's lockfile, `@tanstack/ai` at `0.49.1` — the `v0.0.58` originally
-  noted here is stale) — expect some instability in exact event
-  shapes/semantics. Build the tool-call-visibility UI against a small,
-  deliberately chosen subset of event types first (tool call
-  start/args/end/result, text content, run started/finished), not full
-  spec coverage speculatively.
+- **AG-UI is pre-1.0** (`@ag-ui/core` resolves to `0.1.1-canary.beta.0` in
+  this repo's lockfile — transitively, via `@tanstack/ai@0.49.1`; the
+  backend declares `@ag-ui/core@^0.0.58` directly) — expect some
+  instability in exact event shapes/semantics. Build the
+  tool-call-visibility UI against a small, deliberately chosen subset of
+  event types first (tool call start/args/end/result, text content, run
+  started/finished), not full spec coverage speculatively.
 - **Known `@tanstack/ai@0.49.1` client bug — tool call before any text
   drops the first text delta.** If `TOOL_CALL_START.parentMessageId`
   references a message id that hasn't had a `TEXT_MESSAGE_START` yet,
@@ -70,17 +58,15 @@ Worth carrying into this plan rather than re-discovering:
   delta silently wipes the first one instead of appending to it.
   Reproduced and root-caused directly against `StreamProcessor` outside
   Vue/HTTP (not a mock- or app-specific bug). This is exactly the
-  "tool call, then final answer" ordering this whole project renders —
-  any spec-correct AG-UI producer hits it, including the real backend
-  once its translator lands. **Workaround** (used in
+  "tool call, then final answer" ordering this whole project renders, so
+  any spec-correct AG-UI producer hits it. **Workaround** (used in
   `mocks/mock-ag-ui-server.ts`): emit an empty
   `TEXT_MESSAGE_START`/`TEXT_MESSAGE_END` pair for the assistant message
   id *before* any `TOOL_CALL_START` references it as `parentMessageId`.
   This registers the message via the normal "new message" path so the
-  later real `TEXT_MESSAGE_START` resets segment state correctly.
-  `payments-toolkit-agent`'s AG-UI translator will need the same
-  ordering — worth a note in that repo's PLAN.md when that work starts,
-  or re-check whether a newer `@tanstack/ai` has fixed it by then.
+  later real `TEXT_MESSAGE_START` resets segment state correctly. The real
+  backend's translator hit this too and uses the same empty-pair ordering
+  (its PLAN.md, step 8); revisit if a newer `@tanstack/ai` fixes it.
 
 ## Non-goals (for this iteration)
 
@@ -88,39 +74,36 @@ Worth carrying into this plan rather than re-discovering:
   what's already tracked in their own PLAN.md files — this project
   consumes the backend, it doesn't own it.
 - No multi-turn conversation persistence — the backend is single-turn per
-  request for now (see its PLAN.md), so this frontend is too. A session
-  history UI is a fast-follow blocked on the backend supporting it.
-- No cancel/interrupt control initially — genuinely one of AG-UI's new
-  capabilities over plain chat UIs (per the original brainstorming), but
-  blocked on the backend supporting mid-turn cancellation, which it
-  doesn't yet. Fast-follow once the backend does.
+  request (see its PLAN.md), so this frontend is too. A session history UI
+  is a fast-follow blocked on the backend supporting it.
 - No production deployment — local-first, matching the backend's own
   scope for this phase.
 - No auth/guardrails — same deferral as the backend.
 
 ## Prerequisites
 
-- Node.js 18+, pnpm (matching the backend's requirements)
+- Node.js `^22.18.0 || >=24.12.0` (see `package.json` `engines`; `.nvmrc`
+  pins v24), pnpm
 - Vue 3 via plain Vite (locked in — no SSR/routing needed for a one-screen demo)
-- `payments-toolkit-agent` running locally, **once its `/chat` endpoint
-  emits real AG-UI events** (see "Blocking dependency" above) — until
-  then, the local mock endpoint from step 2 stands in for it
+- `payments-toolkit-agent` running locally (`pnpm run start:http`), or the
+  local mock endpoint from step 2 for offline frontend work
 
 ## Project structure
 
 ```
 payments-toolkit-frontend/
   src/
+    App.vue                 # wires ChatInput + MessageList together via useAgentChat
     components/
-      ChatInput.vue        # prompt box + send button
-      MessageList.vue      # rendered conversation (user + agent turns)
-      ToolCallTrace.vue    # live tool-call visibility: name, args, result, per turn
+      ChatInput.vue         # prompt box; send button becomes Stop while a turn streams
+      MessageList.vue       # rendered conversation (user + agent turns)
+      ToolCallTrace.vue     # live tool-call visibility: name, args, result, per turn
+      McpAppView.vue        # hosts an MCP Apps `ui://` widget in a sandboxed iframe
     composables/
-      useAgentChat.ts       # wraps @tanstack/ai-vue's useChat, points at the backend (or mock)
-    mocks/
-      mock-ag-ui-server.ts  # local dev server emitting hand-written AG-UI SSE events,
-                             # standing in for payments-toolkit-agent until its
-                             # translator work lands
+      useAgentChat.ts       # wraps @tanstack/ai-vue's useChat; points at the backend (or mock)
+  mocks/
+    mock-ag-ui-server.ts    # local dev server emitting hand-written AG-UI SSE events
+                            # (offline stand-in for the backend; also mirrors its cancel surface)
   package.json
   tsconfig.json
   README.md
@@ -138,13 +121,15 @@ payments-toolkit-frontend/
 
 ### 2. Stand up a local mock AG-UI endpoint
 
-- A tiny local server (`mocks/mock-ag-ui-server.ts`) that replays a
-  handful of hand-written, spec-correct AG-UI event sequences over SSE —
-  e.g. one fixed "valid IBAN" turn, one "invalid card" turn, one "declined
-  out-of-scope request" turn — enough to build and screenshot the UI
-  against before the real backend can produce these events
+- A tiny local server (`mocks/mock-ag-ui-server.ts`) that replays
+  hand-written, spec-correct AG-UI event sequences over SSE, picked by a
+  keyword in the prompt — enough to build and screenshot the UI against
+  before the real backend can produce these events
+- Scenarios: "valid IBAN" turn, "invalid card" turn, "card type" turn
+  (adds the MCP Apps widget — see step 6), "declined out-of-scope" turn
 - This unblocks steps 3-4 without waiting on `payments-toolkit-agent`'s
-  translator work
+  translator work. Later grew a cancel surface to match the backend
+  (step 8).
 
 ### 3. Build a minimal chat UI
 
@@ -183,17 +168,63 @@ offline frontend work.
   handling built in from the start (see step 2), which is why this
   didn't show up until the swap.
 
-### 6. README pass
+### 6. Render MCP Apps widgets inline — done
+
+`payments-toolkit-mcp`'s `detect_card_type` advertises an MCP Apps UI
+widget (a `ui://payments-toolkit/card-preview` resource). The backend
+forwards it as an AG-UI `CUSTOM` event (`name: "ui-resource"`, its PLAN.md
+step 9), which `@tanstack/ai` reconciles into a `ui-resource` message part.
+
+- `McpAppView.vue` acts as the MCP Apps *host*: renders the self-contained
+  widget HTML in a sandboxed iframe, runs the `@modelcontextprotocol/ext-apps`
+  postMessage init handshake, then pushes the tool input/result in so the
+  widget (which reads `structuredContent`) paints itself.
+- `MessageList.vue` pairs each `ui-resource` part with its tool call/result
+  by `toolCallId` and holds the widget back until the agent's answer text
+  starts streaming — the event arrives right after the tool result, and
+  popping the card in mid-stream reads as out-of-order.
+- The mock's "card type" scenario forwards the real built widget from
+  `../payments-toolkit-mcp/dist/ui/card-preview/` so the handshake is
+  exercised offline against the genuine ext-apps SDK.
+
+### 7. Cancel / interrupt for an in-flight turn — done
+
+`payments-toolkit-agent` shipped its side (its PLAN.md, step 10): a client
+disconnect on `/chat` cancels the turn via the request signal, and an
+explicit `POST /chat/:runId/cancel` side-channel does the same without
+waiting for the socket to drop (which a buffering proxy can delay).
+
+- `ChatInput.vue`'s send button becomes a **Stop** button while a turn is
+  in flight (`busy` prop); the text input stays locked, since the backend
+  is single-turn.
+- `useAgentChat.ts` exposes `cancel()`: it calls `@tanstack/ai-vue`'s
+  `stop()` (aborts the SSE fetch — the zero-API-surface path the backend
+  already honours) and *also* fires `POST /chat/:runId/cancel` with the
+  runId the client already holds. Best-effort — a `404` just means the run
+  already finished.
+- A cancel that reaches the client as an AG-UI event surfaces as an error
+  with message `"cancelled"` (backend has no `RUN_CANCELLED`); `App.vue`
+  renders that as a muted "Turn stopped." notice, not a red error. The
+  local `stop()` path doesn't set an error at all (`AbortError` is
+  swallowed by the client), so this only matters for a backend-initiated
+  cancel.
+- `mocks/mock-ag-ui-server.ts` gained the same two triggers (a `res`
+  'close' listener + a `POST /chat/:runId/cancel` route backed by an
+  in-flight-run registry) so the Stop control is exercisable offline.
+  Verified with `curl`: explicit cancel mid-stream ends the stream with
+  `RUN_ERROR`/`cancelled`, client disconnect cleans the registry, a second
+  cancel returns `404`.
+
+### 8. README pass — ongoing
 
 - Document setup, how to run against the mock vs. the real backend, and
-  the dependency on `payments-toolkit-agent`'s AG-UI support
+  the dependency on `payments-toolkit-agent`
 - Link back to both `payments-toolkit-mcp` and `payments-toolkit-agent` as
   the companion projects in this series
+- Kept current as steps 6-7 landed (MCP Apps widgets, Stop control)
 
 ## Fast-follows (explicitly out of scope for this PLAN, tracked for later)
 
-- Cancel/interrupt control for an in-flight agent turn, once the backend
-  supports it
 - Multi-turn conversation history/session UI, once the backend supports
   session state (see `payments-toolkit-agent`'s fast-follows)
 - Visual/UX polish pass once the core loop (mock or real) is working end
@@ -208,6 +239,8 @@ offline frontend work.
   a final answer
 - The same UI works unmodified (beyond the endpoint URL, per step 5)
   against the real `payments-toolkit-agent` backend — verified live
+- MCP Apps widgets forwarded by the backend render inline with their tool
+  result (step 6); the Stop control cancels an in-flight turn (step 7)
 - README explains setup, the mock/real backend split, and the
   cross-project dependency clearly enough that a stranger (or a future
   you) could pick this up cold

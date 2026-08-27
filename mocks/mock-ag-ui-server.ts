@@ -288,9 +288,22 @@ async function readJsonBody(req: IncomingMessage): Promise<RunAgentInput> {
   return JSON.parse(Buffer.concat(chunks).toString('utf-8')) as RunAgentInput
 }
 
+// In-flight turns, keyed by AG-UI runId — mirrors payments-toolkit-agent's
+// own registry (its PLAN.md, step 10). Two cancel triggers, one signal:
+// the client dropping the SSE connection (`req` 'close') and the explicit
+// POST /chat/:runId/cancel side-channel.
+const inFlightRuns = new Map<string, AbortController>()
+
 async function handleChat(req: IncomingMessage, res: ServerResponse) {
   const input = await readJsonBody(req)
   const scenario = pickScenario(lastUserText(input.messages ?? []))
+
+  const cancel = new AbortController()
+  inFlightRuns.set(input.runId, cancel)
+  // `res` 'close' is the reliable "client went away mid-stream" signal for a
+  // streaming response — `req` 'close' alone can miss it once the request
+  // body is fully read.
+  res.on('close', () => cancel.abort())
 
   res.writeHead(200, {
     'Content-Type': 'text/event-stream',
@@ -299,9 +312,40 @@ async function handleChat(req: IncomingMessage, res: ServerResponse) {
     ...corsHeaders(),
   })
 
-  for await (const line of scenarioFor(scenario, input.threadId, input.runId)) {
-    res.write(line)
+  try {
+    for await (const line of scenarioFor(scenario, input.threadId, input.runId)) {
+      if (cancel.signal.aborted) break
+      res.write(line)
+    }
+    // A cancelled turn still gets a terminal AG-UI event so the client's
+    // StreamProcessor finalizes the run — RUN_ERROR/"cancelled", since
+    // @ag-ui/core has no RUN_CANCELLED. Best-effort: on a client
+    // disconnect the socket is already gone.
+    if (cancel.signal.aborted && res.writable) {
+      res.write(sseLine({ type: 'RUN_ERROR', message: 'cancelled' }))
+    }
+  } finally {
+    inFlightRuns.delete(input.runId)
+    res.end()
   }
+}
+
+// runId is the second-to-last path segment: /chat/<runId>/cancel
+function cancelRunIdFromUrl(url: string): string | undefined {
+  const match = /^\/chat\/([^/]+)\/cancel\/?$/.exec(url)
+  return match ? decodeURIComponent(match[1]) : undefined
+}
+
+function handleCancel(runId: string, res: ServerResponse) {
+  const controller = inFlightRuns.get(runId)
+  if (!controller) {
+    // Already finished, already cancelled, or never existed — a caller no-op.
+    res.writeHead(404, corsHeaders())
+    res.end()
+    return
+  }
+  controller.abort()
+  res.writeHead(202, corsHeaders())
   res.end()
 }
 
@@ -318,6 +362,12 @@ const server = createServer((req, res) => {
       if (!res.headersSent) res.writeHead(500, corsHeaders())
       res.end()
     })
+    return
+  }
+
+  const cancelRunId = req.url ? cancelRunIdFromUrl(req.url) : undefined
+  if (req.method === 'POST' && cancelRunId) {
+    handleCancel(cancelRunId, res)
     return
   }
 

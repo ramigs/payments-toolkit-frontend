@@ -2,18 +2,21 @@
 import { ref } from 'vue'
 
 const props = defineProps<{
-  disabled?: boolean
+  // A turn is in flight: the input is locked (the backend is single-turn)
+  // and the send button becomes a Stop button.
+  busy?: boolean
 }>()
 
 const emit = defineEmits<{
   send: [message: string]
+  stop: []
 }>()
 
 const draft = ref('')
 
 function submit() {
   const message = draft.value.trim()
-  if (!message || props.disabled) return
+  if (!message || props.busy) return
   emit('send', message)
   draft.value = ''
 }
@@ -25,10 +28,11 @@ function submit() {
       v-model="draft"
       type="text"
       placeholder="Ask about a card number or IBAN…"
-      :disabled="disabled"
+      :disabled="busy"
       autofocus
     />
-    <button type="submit" :disabled="disabled || !draft.trim()">Send</button>
+    <button v-if="busy" type="button" class="stop" @click="emit('stop')">Stop</button>
+    <button v-else type="submit" :disabled="!draft.trim()">Send</button>
   </form>
 </template>
 
@@ -47,5 +51,10 @@ input {
 button {
   padding: 0.5rem 1rem;
   font-size: 1rem;
+}
+
+.stop {
+  border-color: #b91c1c;
+  color: #b91c1c;
 }
 </style>
