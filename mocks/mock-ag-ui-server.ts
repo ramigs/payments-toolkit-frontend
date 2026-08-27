@@ -9,8 +9,36 @@
  * server's URL for the real backend's should be a one-line change.
  */
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 
 const PORT = 8787
+
+const CARD_PREVIEW_URI = 'ui://payments-toolkit/card-preview'
+
+// The card-type scenario forwards a real MCP Apps widget, mirroring what
+// payments-toolkit-agent does with payments-toolkit-mcp's `ui://` resource.
+// We reuse that server's built widget so the handshake in McpAppView.vue is
+// exercised against the genuine ext-apps View SDK, not a hand-rolled stub.
+// Run `pnpm --dir ../payments-toolkit-mcp run build:widget` if this is missing.
+let cardPreviewHtml: string
+try {
+  cardPreviewHtml = readFileSync(
+    fileURLToPath(
+      new URL(
+        '../../payments-toolkit-mcp/dist/ui/card-preview/mcp-app.html',
+        import.meta.url,
+      ),
+    ),
+    'utf-8',
+  )
+} catch {
+  cardPreviewHtml =
+    '<!doctype html><meta charset="utf-8"><body style="font:14px system-ui;padding:1rem">' +
+    'card-preview widget not built — run <code>pnpm --dir ../payments-toolkit-mcp run build:widget</code>' +
+    '</body>'
+  console.warn('mock-ag-ui-server: card-preview widget not found; using placeholder')
+}
 
 interface WireMessage {
   role: string
@@ -47,11 +75,19 @@ function lastUserText(messages: Array<WireMessage>): string {
   return ''
 }
 
-type Scenario = 'iban' | 'card' | 'declined'
+type Scenario = 'iban' | 'card-type' | 'card' | 'declined'
 
 function pickScenario(text: string): Scenario {
   const lower = text.toLowerCase()
   if (lower.includes('iban')) return 'iban'
+  if (
+    lower.includes('type') ||
+    lower.includes('network') ||
+    lower.includes('visa') ||
+    lower.includes('mastercard')
+  ) {
+    return 'card-type'
+  }
   if (lower.includes('card')) return 'card'
   return 'declined'
 }
@@ -157,6 +193,60 @@ async function* cardScenario(threadId: string, runId: string) {
   yield sseLine({ type: 'RUN_FINISHED', threadId, runId })
 }
 
+async function* cardTypeScenario(threadId: string, runId: string) {
+  const assistantMessageId = `msg-${runId}-assistant`
+  const toolCallId = `call-${runId}-card-type`
+
+  yield sseLine({ type: 'RUN_STARTED', threadId, runId })
+  await sleep(200)
+  yield* openAssistantMessage(assistantMessageId)
+
+  yield sseLine({
+    type: 'TOOL_CALL_START',
+    toolCallId,
+    toolCallName: 'detect_card_type',
+    parentMessageId: assistantMessageId,
+  })
+  await sleep(150)
+  yield sseLine({ type: 'TOOL_CALL_ARGS', toolCallId, delta: '{"cardNumber":"4111111111111111"}' })
+  await sleep(150)
+  yield sseLine({ type: 'TOOL_CALL_END', toolCallId })
+  await sleep(200)
+  yield sseLine({
+    type: 'TOOL_CALL_RESULT',
+    messageId: `tool-${toolCallId}`,
+    toolCallId,
+    role: 'tool',
+    content: JSON.stringify({ network: 'Visa', last4: '1111' }),
+  })
+  await sleep(150)
+
+  // The MCP Apps widget for this tool — matches how payments-toolkit-agent
+  // forwards payments-toolkit-mcp's `ui://` resource. @tanstack/ai turns this
+  // into a `ui-resource` message part; McpAppView.vue renders it.
+  yield sseLine({
+    type: 'CUSTOM',
+    name: 'ui-resource',
+    value: {
+      resource: {
+        uri: CARD_PREVIEW_URI,
+        mimeType: 'text/html;profile=mcp-app',
+        text: cardPreviewHtml,
+      },
+      toolCallId,
+      toolName: 'detect_card_type',
+    },
+  })
+  await sleep(150)
+
+  yield* finalAnswer(
+    assistantMessageId,
+    'That card number is on the Visa network (ending 1111).',
+  )
+
+  yield sseLine({ type: 'RUN_FINISHED', threadId, runId })
+}
+
 async function* declinedScenario(threadId: string, runId: string) {
   const assistantMessageId = `msg-${runId}-assistant`
 
@@ -175,6 +265,8 @@ function scenarioFor(scenario: Scenario, threadId: string, runId: string) {
   switch (scenario) {
     case 'iban':
       return ibanScenario(threadId, runId)
+    case 'card-type':
+      return cardTypeScenario(threadId, runId)
     case 'card':
       return cardScenario(threadId, runId)
     case 'declined':
@@ -235,5 +327,8 @@ const server = createServer((req, res) => {
 
 server.listen(PORT, () => {
   console.log(`mock-ag-ui-server listening on http://localhost:${PORT}/chat`)
-  console.log('Scenarios: mention "iban" -> valid IBAN, "card" -> invalid card, anything else -> declined')
+  console.log(
+    'Scenarios: "iban" -> valid IBAN, "type"/"network" -> card-type + MCP Apps widget, ' +
+      '"card" -> invalid card, anything else -> declined',
+  )
 })

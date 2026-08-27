@@ -1,12 +1,26 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { UIMessage } from '@tanstack/ai-vue'
+import type { MessagePart } from '@tanstack/ai/client'
 import ToolCallTrace from './ToolCallTrace.vue'
+import McpAppView from './McpAppView.vue'
 
 const props = defineProps<{
   messages: ReadonlyArray<UIMessage>
   loading?: boolean
 }>()
+
+type UiResourcePart = Extract<MessagePart, { type: 'ui-resource' }>
+type ToolCallPart = Extract<MessagePart, { type: 'tool-call' }>
+type ToolResultPart = Extract<MessagePart, { type: 'tool-result' }>
+
+interface McpWidget {
+  key: string
+  resource: UiResourcePart['resource']
+  toolName: string
+  toolInput?: Record<string, unknown>
+  toolResult?: Record<string, unknown>
+}
 
 function textOf(message: UIMessage): string {
   return message.parts
@@ -19,12 +33,57 @@ function hasToolCalls(message: UIMessage): boolean {
   return message.parts.some((part) => part.type === 'tool-call')
 }
 
+function asRecord(value: unknown): Record<string, unknown> | undefined {
+  return value !== null && typeof value === 'object'
+    ? (value as Record<string, unknown>)
+    : undefined
+}
+
+function parseRecord(content: unknown): Record<string, unknown> | undefined {
+  if (typeof content !== 'string') return asRecord(content)
+  try {
+    return asRecord(JSON.parse(content))
+  } catch {
+    return undefined
+  }
+}
+
+// The MCP Apps widgets on an assistant turn: each `ui-resource` part paired
+// with the input/result of the tool call it renders (matched by toolCallId).
+function widgetsOf(message: UIMessage): Array<McpWidget> {
+  const parts = message.parts
+  const calls = parts.filter((part): part is ToolCallPart => part.type === 'tool-call')
+  const results = parts.filter((part): part is ToolResultPart => part.type === 'tool-result')
+
+  return parts
+    .filter((part): part is UiResourcePart => part.type === 'ui-resource')
+    .map((part) => {
+      const call = calls.find((c) => c.id === part.toolCallId)
+      const result = results.find((r) => r.toolCallId === part.toolCallId)
+      return {
+        key: part.toolCallId,
+        resource: part.resource,
+        toolName: part.toolName,
+        toolInput: asRecord(call?.input) ?? parseRecord(call?.arguments),
+        toolResult: parseRecord(result?.content),
+      }
+    })
+}
+
 const turns = computed(() => {
   const list = props.messages
     .filter((message) => message.role === 'user' || message.role === 'assistant')
     .map((message) => ({ id: message.id, role: message.role, text: textOf(message), message }))
   return list.map((turn, index) => ({
     ...turn,
+    // Hold the MCP Apps widget(s) back until the agent's answer text has
+    // started streaming (or the run is done) — the `ui-resource` event
+    // arrives right after the tool result, well before the final text, and
+    // popping the card in mid-stream reads as out-of-order.
+    widgets:
+      turn.role === 'assistant' && (turn.text !== '' || !props.loading)
+        ? widgetsOf(turn.message)
+        : [],
     // Only true for the gap between sending and the first tool call or text
     // token arriving on THIS turn — once either appears, that's a better
     // "it's working" signal than a generic spinner, so this goes false on
@@ -61,6 +120,14 @@ const showThinkingBeforeReply = computed(() => {
       <p v-else-if="turn.isThinking" class="thinking" aria-label="Agent is thinking">
         <span class="dot" /><span class="dot" /><span class="dot" />
       </p>
+      <McpAppView
+        v-for="widget in turn.widgets"
+        :key="widget.key"
+        :resource="widget.resource"
+        :tool-name="widget.toolName"
+        :tool-input="widget.toolInput"
+        :tool-result="widget.toolResult"
+      />
     </div>
     <div v-if="showThinkingBeforeReply" class="turn assistant">
       <span class="role">Agent</span>
