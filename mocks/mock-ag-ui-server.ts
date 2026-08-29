@@ -92,26 +92,6 @@ function pickScenario(text: string): Scenario {
   return 'declined'
 }
 
-/**
- * Registers the assistant message via an empty TEXT_MESSAGE_START/END pair
- * before any TOOL_CALL_START references it as parentMessageId.
- *
- * Works around a bug in @tanstack/ai@0.49.1's StreamProcessor: when
- * TOOL_CALL_START's parentMessageId points at a message with no prior
- * TEXT_MESSAGE_START, ensureAssistantMessage() takes its "backward compat"
- * auto-create path and sets pendingManualMessageId. The *real* subsequent
- * TEXT_MESSAGE_START for that id then hits the pendingManualMessageId branch
- * instead of the "existing message" branch, which skips resetting
- * hasToolCallsSinceTextStart — so the first TEXT_MESSAGE_CONTENT delta after
- * the tool call gets silently dropped from the rendered text. Pre-registering
- * the message keeps TEXT_MESSAGE_START on the normal "new message" path and
- * avoids the bug. Verified against @tanstack/ai's StreamProcessor directly.
- */
-async function* openAssistantMessage(messageId: string) {
-  yield sseLine({ type: 'TEXT_MESSAGE_START', messageId, role: 'assistant' })
-  yield sseLine({ type: 'TEXT_MESSAGE_END', messageId })
-}
-
 async function* finalAnswer(messageId: string, text: string) {
   yield sseLine({ type: 'TEXT_MESSAGE_START', messageId, role: 'assistant' })
   for (const delta of chunksOf(text)) {
@@ -127,7 +107,6 @@ async function* ibanScenario(threadId: string, runId: string) {
 
   yield sseLine({ type: 'RUN_STARTED', threadId, runId })
   await sleep(200)
-  yield* openAssistantMessage(assistantMessageId)
 
   yield sseLine({
     type: 'TOOL_CALL_START',
@@ -163,7 +142,6 @@ async function* cardScenario(threadId: string, runId: string) {
 
   yield sseLine({ type: 'RUN_STARTED', threadId, runId })
   await sleep(200)
-  yield* openAssistantMessage(assistantMessageId)
 
   yield sseLine({
     type: 'TOOL_CALL_START',
@@ -199,7 +177,6 @@ async function* cardTypeScenario(threadId: string, runId: string) {
 
   yield sseLine({ type: 'RUN_STARTED', threadId, runId })
   await sleep(200)
-  yield* openAssistantMessage(assistantMessageId)
 
   yield sseLine({
     type: 'TOOL_CALL_START',

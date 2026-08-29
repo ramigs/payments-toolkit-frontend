@@ -40,33 +40,36 @@ Worth carrying into this plan rather than re-discovering:
   any TanStack-specific code — it just needs to emit spec-correct AG-UI
   events, and this frontend's client will understand it.
 - **AG-UI is pre-1.0** (`@ag-ui/core` resolves to `0.1.1-canary.beta.0` in
-  this repo's lockfile — transitively, via `@tanstack/ai@0.49.1`; the
+  this repo's lockfile — transitively, via `@tanstack/ai@0.52.0`; the
   backend declares `@ag-ui/core@^0.0.58` directly) — expect some
   instability in exact event shapes/semantics. Build the
   tool-call-visibility UI against a small, deliberately chosen subset of
   event types first (tool call start/args/end/result, text content, run
   started/finished), not full spec coverage speculatively.
-- **Known `@tanstack/ai@0.49.1` client bug — tool call before any text
-  drops the first text delta.** If `TOOL_CALL_START.parentMessageId`
-  references a message id that hasn't had a `TEXT_MESSAGE_START` yet,
-  `StreamProcessor.ensureAssistantMessage()` takes its backward-compat
-  auto-create path and sets `pendingManualMessageId`. The real
-  `TEXT_MESSAGE_START` that follows for that same id then hits the
+- **`@tanstack/ai` client bug — tool call before any text dropped the
+  first text delta — fixed in `0.51.0`; this repo now runs `0.52.0` and
+  carries no workaround.** In `0.49.1`, if `TOOL_CALL_START.parentMessageId`
+  referenced a message id that hadn't had a `TEXT_MESSAGE_START` yet,
+  `StreamProcessor.ensureAssistantMessage()` took its backward-compat
+  auto-create path and set `pendingManualMessageId`. The real
+  `TEXT_MESSAGE_START` that followed for that same id then hit the
   `pendingManualMessageId` branch instead of the "existing message"
-  branch, which is the only branch that resets
+  branch, which was the only branch that reset
   `hasToolCallsSinceTextStart` — so the *second* `TEXT_MESSAGE_CONTENT`
-  delta silently wipes the first one instead of appending to it.
+  delta silently wiped the first one instead of appending to it.
   Reproduced and root-caused directly against `StreamProcessor` outside
-  Vue/HTTP (not a mock- or app-specific bug). This is exactly the
-  "tool call, then final answer" ordering this whole project renders, so
-  any spec-correct AG-UI producer hits it. **Workaround** (used in
-  `mocks/mock-ag-ui-server.ts`): emit an empty
+  Vue/HTTP. This is exactly the "tool call, then final answer" ordering
+  this whole project renders, so any spec-correct AG-UI producer hit it.
+  `0.51.0`'s `handleTextMessageStartEvent` adds an explicit branch that resets the
+  segment accumulator (`currentSegmentText` / `lastEmittedText` /
+  `hasToolCallsSinceTextStart`) when the message was already marked by a
+  prior tool call — the same reset the "existing message" branch does.
+  Until then the workaround was to emit an empty
   `TEXT_MESSAGE_START`/`TEXT_MESSAGE_END` pair for the assistant message
-  id *before* any `TOOL_CALL_START` references it as `parentMessageId`.
-  This registers the message via the normal "new message" path so the
-  later real `TEXT_MESSAGE_START` resets segment state correctly. The real
-  backend's translator hit this too and uses the same empty-pair ordering
-  (its PLAN.md, step 8); revisit if a newer `@tanstack/ai` fixes it.
+  id before any `TOOL_CALL_START` referenced it; that's been removed from
+  `mocks/mock-ag-ui-server.ts`. The real backend's translator had the
+  same empty-pair workaround (its PLAN.md, step 8); it's been removed
+  there too now that the only consumer runs `@tanstack/ai >= 0.51.0`.
 
 ## Non-goals (for this iteration)
 
