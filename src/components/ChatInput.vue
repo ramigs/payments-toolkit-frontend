@@ -49,19 +49,34 @@ defineExpose({ focus: () => input.value?.focus() })
   gap: 0.5rem;
 }
 
+/* Explicit borders/backgrounds so these survive Tailwind's Preflight reset.
+   This component gets the full shadcn-vue treatment in a later step. */
 input {
   flex: 1;
   padding: 0.5rem 0.75rem;
   font-size: 1rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.375rem;
+  background: #fff;
 }
 
 button {
   padding: 0.5rem 1rem;
   font-size: 1rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.375rem;
+  background: #f8fafc;
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .stop {
   border-color: #b91c1c;
   color: #b91c1c;
+  background: #fff;
 }
 </style>
