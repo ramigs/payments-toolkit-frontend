@@ -1,5 +1,8 @@
 <script setup lang="ts">
 import { useTemplateRef } from 'vue'
+import { Send, Square } from '@lucide/vue'
+import { Button } from '@/components/ui/button'
+import { Textarea } from '@/components/ui/textarea'
 
 const props = defineProps<{
   // A turn is in flight: the input is locked (the backend is single-turn)
@@ -22,61 +25,43 @@ function submit() {
   draft.value = ''
 }
 
-// Let the parent pull focus here after a sample is clicked, so the user can
-// keep typing without reaching for the mouse.
-const input = useTemplateRef<HTMLInputElement>('input')
-defineExpose({ focus: () => input.value?.focus() })
+// Enter sends; Shift+Enter inserts a newline. Ignore Enter mid-IME-composition.
+function onKeydown(event: KeyboardEvent) {
+  if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) {
+    event.preventDefault()
+    submit()
+  }
+}
+
+// Let the parent pull focus here after a sample is clicked. The Textarea's
+// single root element is the <textarea> itself, so $el is that node.
+const textarea = useTemplateRef<{ $el: HTMLTextAreaElement }>('textarea')
+defineExpose({ focus: () => textarea.value?.$el?.focus() })
 </script>
 
 <template>
-  <form class="chat-input" @submit.prevent="submit">
-    <input
-      ref="input"
+  <form class="flex items-end gap-2" @submit.prevent="submit">
+    <Textarea
+      ref="textarea"
       v-model="draft"
-      type="text"
       placeholder="Ask about a card number or IBAN…"
+      class="max-h-40 min-h-10 flex-1 resize-none"
       :disabled="busy"
       autofocus
+      @keydown="onKeydown"
     />
-    <button v-if="busy" type="button" class="stop" @click="emit('stop')">Stop</button>
-    <button v-else type="submit" :disabled="!draft.trim()">Send</button>
+    <Button
+      v-if="busy"
+      type="button"
+      variant="destructive"
+      size="icon"
+      aria-label="Stop generating"
+      @click="emit('stop')"
+    >
+      <Square class="fill-current" />
+    </Button>
+    <Button v-else type="submit" size="icon" :disabled="!draft.trim()" aria-label="Send message">
+      <Send />
+    </Button>
   </form>
 </template>
-
-<style scoped>
-.chat-input {
-  display: flex;
-  gap: 0.5rem;
-}
-
-/* Explicit borders/backgrounds so these survive Tailwind's Preflight reset.
-   This component gets the full shadcn-vue treatment in a later step. */
-input {
-  flex: 1;
-  padding: 0.5rem 0.75rem;
-  font-size: 1rem;
-  border: 1px solid #cbd5e1;
-  border-radius: 0.375rem;
-  background: #fff;
-}
-
-button {
-  padding: 0.5rem 1rem;
-  font-size: 1rem;
-  border: 1px solid #cbd5e1;
-  border-radius: 0.375rem;
-  background: #f8fafc;
-  cursor: pointer;
-}
-
-button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.stop {
-  border-color: #b91c1c;
-  color: #b91c1c;
-  background: #fff;
-}
-</style>
