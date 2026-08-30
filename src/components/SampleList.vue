@@ -51,10 +51,10 @@ const emit = defineEmits<{
       <li v-for="item in items" :key="item.value">
         <Button
           variant="outline"
-          class="h-auto w-full flex-col items-start gap-1 px-3 py-2 whitespace-normal"
+          class="h-auto w-full flex-col items-start gap-2 px-3 py-2 whitespace-normal"
           @click="emit('pick', item.value)"
         >
-          <Badge variant="secondary" class="font-normal">{{ item.label }}</Badge>
+          <Badge class="bg-emerald-100 font-normal text-emerald-700">{{ item.label }}</Badge>
           <span class="font-mono break-all" :class="valueClass">{{ item.value }}</span>
         </Button>
       </li>

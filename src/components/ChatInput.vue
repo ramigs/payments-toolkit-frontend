@@ -46,7 +46,7 @@ defineExpose({ focus: () => textarea.value?.$el?.focus() })
       ref="textarea"
       v-model="draft"
       placeholder="Ask about a card number or IBAN…"
-      class="max-h-40 min-h-10 flex-1 resize-none focus-visible:border-ring focus-visible:ring-0 focus-visible:shadow-md"
+      class="max-h-40 min-h-10 flex-1 resize-none focus-visible:border-ring focus-visible:ring-0 focus-visible:shadow-sm"
       :disabled="busy"
       autofocus
       @keydown="onKeydown"
