@@ -6,6 +6,8 @@ import MessageList from './components/MessageList.vue'
 import SampleCards from './components/SampleCards.vue'
 import SampleIbans from './components/SampleIbans.vue'
 import SamplePrompts from './components/SamplePrompts.vue'
+import { CircleAlert } from '@lucide/vue'
+import { Alert, AlertDescription } from './components/ui/alert'
 import { ScrollArea } from './components/ui/scroll-area'
 import { Separator } from './components/ui/separator'
 import { useAgentChat } from './composables/useAgentChat'
@@ -72,7 +74,10 @@ const wasCancelled = computed(() => error.value?.message === 'cancelled')
       </div>
       <div class="composer">
         <p v-if="wasCancelled" class="notice">Turn stopped.</p>
-        <p v-else-if="error" class="error">{{ error.message }}</p>
+        <Alert v-else-if="error" variant="destructive" class="py-2.5">
+          <CircleAlert />
+          <AlertDescription>{{ error.message }}</AlertDescription>
+        </Alert>
         <ChatInput
           ref="chatInput"
           v-model="draft"
@@ -142,7 +147,7 @@ body {
   max-width: 720px;
   height: 100dvh;
   margin: 0 auto;
-  padding: 1.5rem 1rem;
+  padding: 1.5rem 1rem 5rem;
   display: flex;
   flex-direction: column;
   gap: 1rem;
@@ -185,10 +190,6 @@ body {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-}
-
-.error {
-  color: #b91c1c;
 }
 
 .notice {
