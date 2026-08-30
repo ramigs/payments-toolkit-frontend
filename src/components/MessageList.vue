@@ -2,6 +2,8 @@
 import { computed } from 'vue'
 import type { UIMessage } from '@tanstack/ai-vue'
 import type { MessagePart } from '@tanstack/ai/client'
+import { Bot, User } from '@lucide/vue'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import ToolCallTrace from './ToolCallTrace.vue'
 import McpAppView from './McpAppView.vue'
 
@@ -111,25 +113,48 @@ const showThinkingBeforeReply = computed(() => {
 </script>
 
 <template>
-  <div class="message-list">
-    <div v-for="turn in turns" :key="turn.id" class="turn" :class="turn.role">
-      <span class="role">{{ turn.role === 'user' ? 'You' : 'Agent' }}</span>
-      <ToolCallTrace v-if="turn.role === 'assistant'" :message="turn.message" />
-      <p v-if="turn.text" class="text">{{ turn.text }}</p>
-      <p v-else-if="turn.isThinking" class="thinking" aria-label="Agent is thinking">
-        <span class="dot" /><span class="dot" /><span class="dot" />
-      </p>
-      <McpAppView
-        v-for="widget in turn.widgets"
-        :key="widget.key"
-        :resource="widget.resource"
-        :tool-name="widget.toolName"
-        :tool-input="widget.toolInput"
-        :tool-result="widget.toolResult"
-      />
+  <div class="flex flex-col gap-4">
+    <div
+      v-for="turn in turns"
+      :key="turn.id"
+      class="flex gap-2.5"
+      :class="turn.role === 'user' ? 'flex-row-reverse' : 'flex-row'"
+    >
+      <Avatar class="size-7 shrink-0">
+        <AvatarFallback>
+          <User v-if="turn.role === 'user'" class="size-4" />
+          <Bot v-else class="size-4" />
+        </AvatarFallback>
+      </Avatar>
+      <div
+        class="flex min-w-0 max-w-[80%] flex-col gap-1.5"
+        :class="turn.role === 'user' ? 'items-end' : 'items-start'"
+      >
+        <ToolCallTrace v-if="turn.role === 'assistant'" :message="turn.message" />
+        <div
+          v-if="turn.text"
+          class="rounded-lg px-3 py-2 text-sm whitespace-pre-wrap"
+          :class="turn.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'"
+        >
+          {{ turn.text }}
+        </div>
+        <p v-else-if="turn.isThinking" class="thinking" aria-label="Agent is thinking">
+          <span class="dot" /><span class="dot" /><span class="dot" />
+        </p>
+        <McpAppView
+          v-for="widget in turn.widgets"
+          :key="widget.key"
+          :resource="widget.resource"
+          :tool-name="widget.toolName"
+          :tool-input="widget.toolInput"
+          :tool-result="widget.toolResult"
+        />
+      </div>
     </div>
-    <div v-if="showThinkingBeforeReply" class="turn assistant">
-      <span class="role">Agent</span>
+    <div v-if="showThinkingBeforeReply" class="flex gap-2.5">
+      <Avatar class="size-7 shrink-0">
+        <AvatarFallback><Bot class="size-4" /></AvatarFallback>
+      </Avatar>
       <p class="thinking" aria-label="Agent is thinking">
         <span class="dot" /><span class="dot" /><span class="dot" />
       </p>
@@ -138,40 +163,6 @@ const showThinkingBeforeReply = computed(() => {
 </template>
 
 <style scoped>
-.message-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.turn {
-  padding: 0.5rem 0.75rem;
-  border-radius: 0.5rem;
-  max-width: 80%;
-}
-
-.turn.user {
-  align-self: flex-end;
-  background: #dbeafe;
-}
-
-.turn.assistant {
-  align-self: flex-start;
-  background: #f1f5f9;
-}
-
-.role {
-  display: block;
-  font-size: 0.75rem;
-  font-weight: 600;
-  opacity: 0.6;
-}
-
-.text {
-  margin: 0.25rem 0 0;
-  white-space: pre-wrap;
-}
-
 .thinking {
   margin: 0.4rem 0 0;
   display: flex;

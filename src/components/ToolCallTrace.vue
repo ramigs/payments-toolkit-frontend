@@ -2,6 +2,13 @@
 import { computed } from 'vue'
 import type { UIMessage } from '@tanstack/ai-vue'
 import type { MessagePart } from '@tanstack/ai/client'
+import { ChevronRight, Wrench } from '@lucide/vue'
+import { Badge } from '@/components/ui/badge'
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible'
 
 const props = defineProps<{
   message: UIMessage
@@ -51,46 +58,33 @@ const traces = computed<Array<ToolTrace>>(() => {
     }
   })
 })
+
+const names = computed(() => traces.value.map((trace) => trace.name).join(', '))
+const anyError = computed(() => traces.value.some((trace) => trace.isError))
+const anyPending = computed(() =>
+  traces.value.some((trace) => !trace.hasResult && !trace.isError),
+)
 </script>
 
 <template>
-  <div v-if="traces.length" class="tool-trace">
-    <div v-for="trace in traces" :key="trace.id" class="trace-line" :class="{ error: trace.isError }">
-      <span class="icon">🔧</span>
-      <span class="call">calling {{ trace.name }}({{ trace.argsLabel }})</span>
-      <span v-if="trace.isError" class="result">→ failed</span>
-      <span v-else-if="!trace.hasResult" class="pending">…</span>
-    </div>
-  </div>
+  <Collapsible v-if="traces.length" class="w-full text-xs">
+    <CollapsibleTrigger
+      class="group flex items-center gap-1.5 text-muted-foreground transition-colors hover:text-foreground"
+    >
+      <Wrench class="size-3 shrink-0" />
+      <span class="font-medium">{{ names }}</span>
+      <Badge v-if="anyError" variant="destructive" class="px-1.5 py-0 text-[10px]">failed</Badge>
+      <span v-else-if="anyPending" class="animate-pulse">…</span>
+      <ChevronRight
+        class="size-3 shrink-0 transition-transform group-data-[state=open]:rotate-90"
+      />
+    </CollapsibleTrigger>
+    <CollapsibleContent
+      class="mt-1 flex flex-col gap-1 border-l pl-3 font-mono text-muted-foreground"
+    >
+      <div v-for="trace in traces" :key="trace.id" :class="{ 'text-destructive': trace.isError }">
+        {{ trace.name }}({{ trace.argsLabel }})
+      </div>
+    </CollapsibleContent>
+  </Collapsible>
 </template>
-
-<style scoped>
-.tool-trace {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  margin-bottom: 0.5rem;
-}
-
-.trace-line {
-  font-family:
-    ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 0.8rem;
-  color: #475569;
-  display: flex;
-  gap: 0.4rem;
-  flex-wrap: wrap;
-}
-
-.trace-line.error {
-  color: #b91c1c;
-}
-
-.result {
-  font-weight: 600;
-}
-
-.pending {
-  opacity: 0.6;
-}
-</style>

@@ -139,7 +139,7 @@ body {
 /* Full-height column: intro pinned at the top, composer at the bottom, and
    the message list scrolls in the space between. */
 .chat {
-  max-width: 640px;
+  max-width: 720px;
   height: 100dvh;
   margin: 0 auto;
   padding: 1.5rem 1rem;
@@ -196,9 +196,9 @@ body {
   font-size: 0.875rem;
 }
 
-/* Not enough room for 640px of chat between two 280px rails — drop the rails
+/* Not enough room for 720px of chat between two 280px rails — drop the rails
    back into flow and let the page scroll normally. */
-@media (max-width: 1200px) {
+@media (max-width: 1280px) {
   .layout {
     padding: 0;
   }
