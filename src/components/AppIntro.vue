@@ -1,6 +1,5 @@
 <template>
   <section class="intro">
-    <h1>payments-toolkit</h1>
     <p class="lede">
       A validation assistant for payment details. Ask in plain English — it checks
       <strong>card numbers</strong> (Luhn checksum and card network) and
