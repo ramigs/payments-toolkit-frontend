@@ -14,7 +14,7 @@ interface ToolTrace {
   id: string
   name: string
   argsLabel: string
-  resultLabel: string | null
+  hasResult: boolean
   isError: boolean
 }
 
@@ -32,15 +32,6 @@ function formatArgs(part: ToolCallPart): string {
   return part.arguments
 }
 
-function formatResult(part: ToolResultPart): string {
-  if (typeof part.content !== 'string') return JSON.stringify(part.content)
-  try {
-    return formatEntries(JSON.parse(part.content))
-  } catch {
-    return part.content
-  }
-}
-
 const traces = computed<Array<ToolTrace>>(() => {
   const parts = props.message.parts
   const toolCalls = parts.filter((part): part is ToolCallPart => part.type === 'tool-call')
@@ -52,7 +43,10 @@ const traces = computed<Array<ToolTrace>>(() => {
       id: call.id,
       name: call.name,
       argsLabel: formatArgs(call),
-      resultLabel: result ? formatResult(result) : null,
+      // The result payload isn't shown — the widget renders it, and the raw
+      // { valid, flagSvg, … } blob is noise in the trace. Keep only whether
+      // it has landed (to drop the pending "…") and whether it errored.
+      hasResult: result !== undefined,
       isError: call.state === 'error' || result?.state === 'error',
     }
   })
@@ -64,8 +58,8 @@ const traces = computed<Array<ToolTrace>>(() => {
     <div v-for="trace in traces" :key="trace.id" class="trace-line" :class="{ error: trace.isError }">
       <span class="icon">🔧</span>
       <span class="call">calling {{ trace.name }}({{ trace.argsLabel }})</span>
-      <span v-if="trace.resultLabel" class="result">→ {{ trace.resultLabel }}</span>
-      <span v-else class="pending">…</span>
+      <span v-if="trace.isError" class="result">→ failed</span>
+      <span v-else-if="!trace.hasResult" class="pending">…</span>
     </div>
   </div>
 </template>
