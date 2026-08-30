@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { Button } from '@/components/ui/button'
+
 const emit = defineEmits<{
   // A starter prompt was clicked — send it as-is.
   ask: [prompt: string]
@@ -13,56 +15,20 @@ const examples = [
 </script>
 
 <template>
-  <section class="sample-prompts">
-    <h2>Try one</h2>
-    <ul class="list">
+  <section>
+    <h2 class="mb-3 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+      Try one
+    </h2>
+    <ul class="flex flex-col gap-2">
       <li v-for="example in examples" :key="example">
-        <button type="button" class="prompt" @click="emit('ask', example)">
+        <Button
+          variant="outline"
+          class="h-auto w-full justify-start px-3 py-2 text-left leading-snug whitespace-normal"
+          @click="emit('ask', example)"
+        >
           {{ example }}
-        </button>
+        </Button>
       </li>
     </ul>
   </section>
 </template>
-
-<style scoped>
-.sample-prompts h2 {
-  margin: 0 0 0.75rem;
-  font-size: 0.75rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: #64748b;
-}
-
-.list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.prompt {
-  width: 100%;
-  padding: 0.625rem 0.75rem;
-  font: inherit;
-  text-align: left;
-  color: #0f172a;
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 0.5rem;
-  cursor: pointer;
-}
-
-.prompt:hover {
-  border-color: #94a3b8;
-  background: #f8fafc;
-}
-
-.prompt:focus-visible {
-  outline: 2px solid #2563eb;
-  outline-offset: 1px;
-}
-</style>
