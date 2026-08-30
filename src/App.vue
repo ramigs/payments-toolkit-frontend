@@ -7,6 +7,7 @@ import SampleCards from './components/SampleCards.vue'
 import SampleIbans from './components/SampleIbans.vue'
 import SamplePrompts from './components/SamplePrompts.vue'
 import { ScrollArea } from './components/ui/scroll-area'
+import { Separator } from './components/ui/separator'
 import { useAgentChat } from './composables/useAgentChat'
 import { useAutoScroll } from './composables/useAutoScroll'
 
@@ -44,8 +45,13 @@ const wasCancelled = computed(() => error.value?.message === 'cancelled')
     <!-- Fixed, full-height rails. The center column stays in normal flow so
          it keeps growing the page as the conversation gets longer. -->
     <aside class="rail rail-left">
-      <SampleCards @pick="appendToDraft" />
-      <SampleIbans @pick="appendToDraft" />
+      <ScrollArea class="rail-scroll">
+        <div class="rail-content">
+          <SampleCards @pick="appendToDraft" />
+          <Separator />
+          <SampleIbans @pick="appendToDraft" />
+        </div>
+      </ScrollArea>
     </aside>
 
     <main class="chat">
@@ -78,7 +84,11 @@ const wasCancelled = computed(() => error.value?.message === 'cancelled')
     </main>
 
     <aside class="rail rail-right">
-      <SamplePrompts @ask="handleSend" />
+      <ScrollArea class="rail-scroll">
+        <div class="rail-content">
+          <SamplePrompts @ask="handleSend" />
+        </div>
+      </ScrollArea>
     </aside>
   </div>
 </template>
@@ -102,22 +112,28 @@ body {
   height: 100vh;
   width: var(--rail-width);
   box-sizing: border-box;
-  overflow-y: auto;
-  padding: 1.5rem 1rem;
   background: #f8fafc;
 }
 
 .rail-left {
   left: 0;
   border-right: 1px solid #e2e8f0;
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
 }
 
 .rail-right {
   right: 0;
   border-left: 1px solid #e2e8f0;
+}
+
+.rail-scroll {
+  height: 100%;
+}
+
+.rail-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding: 1.5rem 1rem;
 }
 
 /* Full-height column: intro pinned at the top, composer at the bottom, and

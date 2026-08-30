@@ -20,6 +20,16 @@ export default defineConfigWithVueTs(
   ...pluginVue.configs['flat/essential'],
   vueTsConfigs.recommended,
 
+  {
+    // Vendored shadcn-vue primitives — single-word names (Button, Separator)
+    // are the library's convention, not ours to rename.
+    name: 'app/shadcn-ui',
+    files: ['src/components/ui/**'],
+    rules: {
+      'vue/multi-word-component-names': 'off',
+    },
+  },
+
   ...pluginOxlint.buildFromOxlintConfigFile('.oxlintrc.json'),
 
   skipFormatting,
