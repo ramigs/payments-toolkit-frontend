@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, ref, useTemplateRef } from 'vue'
+import { computed, ref, useTemplateRef, watch } from 'vue'
+import { toast } from 'vue-sonner'
 import AppIntro from './components/AppIntro.vue'
 import ChatInput from './components/ChatInput.vue'
 import MessageList from './components/MessageList.vue'
@@ -10,6 +11,8 @@ import { CircleAlert } from '@lucide/vue'
 import { Alert, AlertDescription } from './components/ui/alert'
 import { ScrollArea } from './components/ui/scroll-area'
 import { Separator } from './components/ui/separator'
+import { Toaster } from './components/ui/sonner'
+import { TooltipProvider } from './components/ui/tooltip'
 import { useAgentChat } from './composables/useAgentChat'
 import { useAutoScroll } from './composables/useAutoScroll'
 
@@ -38,64 +41,70 @@ function appendToDraft(value: string) {
 // A cancel that reaches the client as an AG-UI event (rather than a local
 // stop()) surfaces as an error with message "cancelled" — see
 // payments-toolkit-agent's AgUiTranslator. That's a user action, not a
-// failure, so show it as a muted notice instead of a red error.
+// failure, so acknowledge it with a toast instead of the red error Alert.
 const wasCancelled = computed(() => error.value?.message === 'cancelled')
+
+watch(wasCancelled, (cancelled) => {
+  if (cancelled) toast('Turn stopped.')
+})
 </script>
 
 <template>
-  <div class="layout">
-    <!-- Fixed, full-height rails. The center column stays in normal flow so
+  <TooltipProvider>
+    <div class="layout">
+      <!-- Fixed, full-height rails. The center column stays in normal flow so
          it keeps growing the page as the conversation gets longer. -->
-    <aside class="rail rail-left">
-      <ScrollArea class="rail-scroll">
-        <div class="rail-content">
-          <SampleCards @pick="appendToDraft" />
-          <Separator />
-          <SampleIbans @pick="appendToDraft" />
-        </div>
-      </ScrollArea>
-    </aside>
-
-    <main class="chat">
-      <AppIntro />
-      <div class="messages">
-        <ScrollArea ref="messagesArea" class="messages-scroll">
-          <MessageList :messages :loading="isLoading" />
+      <aside class="rail rail-left">
+        <ScrollArea class="rail-scroll">
+          <div class="rail-content">
+            <SampleCards @pick="appendToDraft" />
+            <Separator />
+            <SampleIbans @pick="appendToDraft" />
+          </div>
         </ScrollArea>
-        <button
-          v-if="!isPinned"
-          type="button"
-          class="jump"
-          aria-label="Scroll to latest"
-          @click="scrollToBottom('smooth')"
-        >
-          ↓
-        </button>
-      </div>
-      <div class="composer">
-        <p v-if="wasCancelled" class="notice">Turn stopped.</p>
-        <Alert v-else-if="error" variant="destructive" class="py-2.5">
-          <CircleAlert />
-          <AlertDescription>{{ error.message }}</AlertDescription>
-        </Alert>
-        <ChatInput
-          ref="chatInput"
-          v-model="draft"
-          :busy="isLoading"
-          @send="handleSend"
-          @stop="cancel"
-        />
-      </div>
-    </main>
+      </aside>
 
-    <aside class="rail rail-right">
-      <ScrollArea class="rail-scroll">
-        <div class="rail-content">
-          <SamplePrompts @ask="handleSend" />
+      <main class="chat">
+        <AppIntro />
+        <div class="messages">
+          <ScrollArea ref="messagesArea" class="messages-scroll">
+            <MessageList :messages :loading="isLoading" />
+          </ScrollArea>
+          <button
+            v-if="!isPinned"
+            type="button"
+            class="jump"
+            aria-label="Scroll to latest"
+            @click="scrollToBottom('smooth')"
+          >
+            ↓
+          </button>
         </div>
-      </ScrollArea>
-    </aside>
-  </div>
+        <div class="composer">
+          <Alert v-if="error && !wasCancelled" variant="destructive" class="py-2.5">
+            <CircleAlert />
+            <AlertDescription>{{ error.message }}</AlertDescription>
+          </Alert>
+          <ChatInput
+            ref="chatInput"
+            v-model="draft"
+            :busy="isLoading"
+            @send="handleSend"
+            @stop="cancel"
+          />
+        </div>
+      </main>
+
+      <aside class="rail rail-right">
+        <ScrollArea class="rail-scroll">
+          <div class="rail-content">
+            <SamplePrompts @ask="handleSend" />
+          </div>
+        </ScrollArea>
+      </aside>
+    </div>
+    <Toaster />
+  </TooltipProvider>
 </template>
 
 <style>
@@ -190,11 +199,6 @@ body {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-}
-
-.notice {
-  color: #64748b;
-  font-size: 0.875rem;
 }
 
 /* Not enough room for 720px of chat between two 280px rails — drop the rails

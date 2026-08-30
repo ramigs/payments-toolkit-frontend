@@ -3,6 +3,7 @@ import { useTemplateRef } from 'vue'
 import { Send, Square } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
 const props = defineProps<{
   // A turn is in flight: the input is locked (the backend is single-turn)
@@ -50,18 +51,27 @@ defineExpose({ focus: () => textarea.value?.$el?.focus() })
       autofocus
       @keydown="onKeydown"
     />
-    <Button
-      v-if="busy"
-      type="button"
-      variant="destructive"
-      size="icon"
-      aria-label="Stop generating"
-      @click="emit('stop')"
-    >
-      <Square class="fill-current" />
-    </Button>
-    <Button v-else type="submit" size="icon" :disabled="!draft.trim()" aria-label="Send message">
-      <Send />
-    </Button>
+    <Tooltip v-if="busy">
+      <TooltipTrigger as-child>
+        <Button
+          type="button"
+          variant="destructive"
+          size="icon"
+          aria-label="Stop generating"
+          @click="emit('stop')"
+        >
+          <Square class="fill-current" />
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent>Stop generating</TooltipContent>
+    </Tooltip>
+    <Tooltip v-else>
+      <TooltipTrigger as-child>
+        <Button type="submit" size="icon" :disabled="!draft.trim()" aria-label="Send message">
+          <Send />
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent>Send · Enter</TooltipContent>
+    </Tooltip>
   </form>
 </template>

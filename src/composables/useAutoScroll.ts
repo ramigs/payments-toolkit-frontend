@@ -25,8 +25,7 @@ export function useAutoScroll(container: Ref<MaybeComponent>, options: Options =
 
   function resolveViewport(): HTMLElement | null {
     const value = container.value
-    const root =
-      value instanceof HTMLElement ? value : ((value?.$el ?? null) as HTMLElement | null)
+    const root = value instanceof HTMLElement ? value : ((value?.$el ?? null) as HTMLElement | null)
     return (
       root?.querySelector<HTMLElement>('[data-reka-scroll-area-viewport]') ??
       root?.querySelector<HTMLElement>('[data-slot="scroll-area-viewport"]') ??

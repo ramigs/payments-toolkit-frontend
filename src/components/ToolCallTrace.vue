@@ -4,11 +4,7 @@ import type { UIMessage } from '@tanstack/ai-vue'
 import type { MessagePart } from '@tanstack/ai/client'
 import { ChevronRight, Wrench } from '@lucide/vue'
 import { Badge } from '@/components/ui/badge'
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 
 const props = defineProps<{
   message: UIMessage
@@ -61,9 +57,7 @@ const traces = computed<Array<ToolTrace>>(() => {
 
 const names = computed(() => traces.value.map((trace) => trace.name).join(', '))
 const anyError = computed(() => traces.value.some((trace) => trace.isError))
-const anyPending = computed(() =>
-  traces.value.some((trace) => !trace.hasResult && !trace.isError),
-)
+const anyPending = computed(() => traces.value.some((trace) => !trace.hasResult && !trace.isError))
 </script>
 
 <template>

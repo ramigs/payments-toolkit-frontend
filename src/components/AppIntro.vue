@@ -2,14 +2,13 @@
   <section class="intro">
     <h1>payments-toolkit</h1>
     <p class="lede">
-      A validation assistant for payment details. Ask in plain English — it
-      checks <strong>card numbers</strong> (Luhn checksum and card network) and
-      <strong>IBANs</strong> (format, country length, checksum) by running real
-      validators, so the verdict isn't a guess.
+      A validation assistant for payment details. Ask in plain English — it checks
+      <strong>card numbers</strong> (Luhn checksum and card network) and
+      <strong>IBANs</strong> (format, country length, checksum) by running real validators, so the
+      verdict isn't a guess.
     </p>
     <p class="hint">
-      Pick a sample from the left or a starter question from the right, or type
-      your own below.
+      Pick a sample from the left or a starter question from the right, or type your own below.
     </p>
   </section>
 </template>
