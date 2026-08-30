@@ -17,4 +17,9 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
+  build: {
+    // The single app chunk (~145 kB gzipped: Vue, reka-ui, @tanstack/ai,
+    // vue-sonner) is fine for this internal tool — lift the 500 kB warning.
+    chunkSizeWarningLimit: 700,
+  },
 })
