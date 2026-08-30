@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { useTemplateRef } from 'vue'
 
 const props = defineProps<{
   // A turn is in flight: the input is locked (the backend is single-turn)
@@ -12,7 +12,8 @@ const emit = defineEmits<{
   stop: []
 }>()
 
-const draft = ref('')
+// Owned by the parent so the sample-card / sample-IBAN rails can append to it.
+const draft = defineModel<string>({ default: '' })
 
 function submit() {
   const message = draft.value.trim()
@@ -20,11 +21,17 @@ function submit() {
   emit('send', message)
   draft.value = ''
 }
+
+// Let the parent pull focus here after a sample is clicked, so the user can
+// keep typing without reaching for the mouse.
+const input = useTemplateRef<HTMLInputElement>('input')
+defineExpose({ focus: () => input.value?.focus() })
 </script>
 
 <template>
   <form class="chat-input" @submit.prevent="submit">
     <input
+      ref="input"
       v-model="draft"
       type="text"
       placeholder="Ask about a card number or IBAN…"

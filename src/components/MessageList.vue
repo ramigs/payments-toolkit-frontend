@@ -112,7 +112,6 @@ const showThinkingBeforeReply = computed(() => {
 
 <template>
   <div class="message-list">
-    <p v-if="turns.length === 0" class="empty">Ask about a card number or IBAN to get started.</p>
     <div v-for="turn in turns" :key="turn.id" class="turn" :class="turn.role">
       <span class="role">{{ turn.role === 'user' ? 'You' : 'Agent' }}</span>
       <ToolCallTrace v-if="turn.role === 'assistant'" :message="turn.message" />
@@ -143,10 +142,6 @@ const showThinkingBeforeReply = computed(() => {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-}
-
-.empty {
-  color: #888;
 }
 
 .turn {
