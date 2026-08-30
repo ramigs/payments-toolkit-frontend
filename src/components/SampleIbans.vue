@@ -24,6 +24,7 @@ const items = computed(() =>
     :loading="isLoading"
     :error="error"
     value-class="text-xs"
+    badge-class="bg-sky-100 text-sky-700"
     @pick="emit('pick', $event)"
   />
 </template>

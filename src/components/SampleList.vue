@@ -21,8 +21,10 @@ withDefaults(
     error?: Error | null
     // Font-size utility for the mono value — IBANs need the smaller one.
     valueClass?: string
+    // Colour utilities for the label Badge — one hue per list.
+    badgeClass?: string
   }>(),
-  { valueClass: 'text-sm' },
+  { valueClass: 'text-sm', badgeClass: 'bg-emerald-100 text-emerald-700' },
 )
 
 const emit = defineEmits<{
@@ -54,7 +56,7 @@ const emit = defineEmits<{
           class="h-auto w-full flex-col items-start gap-2 px-3 py-2 whitespace-normal"
           @click="emit('pick', item.value)"
         >
-          <Badge class="bg-emerald-100 font-normal text-emerald-700">{{ item.label }}</Badge>
+          <Badge class="font-normal" :class="badgeClass">{{ item.label }}</Badge>
           <span class="font-mono break-all" :class="valueClass">{{ item.value }}</span>
         </Button>
       </li>

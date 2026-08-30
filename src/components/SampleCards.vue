@@ -22,6 +22,7 @@ const items = computed(() =>
     :items="items"
     :loading="isLoading"
     :error="error"
+    badge-class="bg-emerald-100 text-emerald-700"
     @pick="emit('pick', $event)"
   />
 </template>
