@@ -6,12 +6,19 @@ import MessageList from './components/MessageList.vue'
 import SampleCards from './components/SampleCards.vue'
 import SampleIbans from './components/SampleIbans.vue'
 import SamplePrompts from './components/SamplePrompts.vue'
+import { ScrollArea } from './components/ui/scroll-area'
 import { useAgentChat } from './composables/useAgentChat'
+import { useAutoScroll } from './composables/useAutoScroll'
 
 const { messages, error, isLoading, sendMessage, cancel } = useAgentChat()
 
+const messagesArea = useTemplateRef<InstanceType<typeof ScrollArea>>('messagesArea')
+const { isPinned, scrollToBottom } = useAutoScroll(messagesArea)
+
 function handleSend(message: string) {
   sendMessage(message)
+  // The user just spoke — always follow, even if they'd scrolled up.
+  scrollToBottom()
 }
 
 // The chat draft lives here so the sample rails can feed it. Clicking a
@@ -43,16 +50,31 @@ const wasCancelled = computed(() => error.value?.message === 'cancelled')
 
     <main class="chat">
       <AppIntro />
-      <MessageList :messages :loading="isLoading" />
-      <p v-if="wasCancelled" class="notice">Turn stopped.</p>
-      <p v-else-if="error" class="error">{{ error.message }}</p>
-      <ChatInput
-        ref="chatInput"
-        v-model="draft"
-        :busy="isLoading"
-        @send="handleSend"
-        @stop="cancel"
-      />
+      <div class="messages">
+        <ScrollArea ref="messagesArea" class="messages-scroll">
+          <MessageList :messages :loading="isLoading" />
+        </ScrollArea>
+        <button
+          v-if="!isPinned"
+          type="button"
+          class="jump"
+          aria-label="Scroll to latest"
+          @click="scrollToBottom('smooth')"
+        >
+          ↓
+        </button>
+      </div>
+      <div class="composer">
+        <p v-if="wasCancelled" class="notice">Turn stopped.</p>
+        <p v-else-if="error" class="error">{{ error.message }}</p>
+        <ChatInput
+          ref="chatInput"
+          v-model="draft"
+          :busy="isLoading"
+          @send="handleSend"
+          @stop="cancel"
+        />
+      </div>
     </main>
 
     <aside class="rail rail-right">
@@ -98,13 +120,55 @@ body {
   border-left: 1px solid #e2e8f0;
 }
 
+/* Full-height column: intro pinned at the top, composer at the bottom, and
+   the message list scrolls in the space between. */
 .chat {
   max-width: 640px;
-  margin: 2rem auto;
-  padding: 0 1rem;
+  height: 100dvh;
+  margin: 0 auto;
+  padding: 1.5rem 1rem;
   display: flex;
   flex-direction: column;
   gap: 1rem;
+}
+
+.messages {
+  position: relative;
+  flex: 1;
+  /* Let the flex item shrink below its content so the ScrollArea scrolls. */
+  min-height: 0;
+}
+
+.messages-scroll {
+  height: 100%;
+}
+
+.jump {
+  position: absolute;
+  right: 0.75rem;
+  bottom: 0.75rem;
+  width: 2rem;
+  height: 2rem;
+  display: grid;
+  place-items: center;
+  font-size: 1rem;
+  line-height: 1;
+  color: #0f172a;
+  background: #fff;
+  border: 1px solid #cbd5e1;
+  border-radius: 9999px;
+  box-shadow: 0 1px 3px rgb(15 23 42 / 0.12);
+  cursor: pointer;
+}
+
+.jump:hover {
+  background: #f8fafc;
+}
+
+.composer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
 }
 
 .error {
@@ -117,7 +181,7 @@ body {
 }
 
 /* Not enough room for 640px of chat between two 280px rails — drop the rails
-   back into flow so nothing overlaps. */
+   back into flow and let the page scroll normally. */
 @media (max-width: 1200px) {
   .layout {
     padding: 0;
@@ -127,6 +191,15 @@ body {
     position: static;
     height: auto;
     width: auto;
+  }
+
+  .chat {
+    height: auto;
+    min-height: 100dvh;
+  }
+
+  .messages {
+    min-height: 0;
   }
 }
 </style>

@@ -17,13 +17,14 @@
     "format": "prettier --write --experimental-cli src/"
   },
   "dependencies": {
+    "@lucide/vue": "^1.37.0",
     "@modelcontextprotocol/ext-apps": "^1.7.5",
     "@tailwindcss/vite": "^4.3.3",
     "@tanstack/ai": "^0.52.0",
     "@tanstack/ai-vue": "^0.19.4",
+    "@vueuse/core": "^14.4.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "lucide-vue-next": "^1.0.0",
     "reka-ui": "^2.10.4",
     "tailwind-merge": "^3.6.0",
     "tailwindcss": "^4.3.3",
