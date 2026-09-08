@@ -235,6 +235,56 @@ waiting for the socket to drop (which a buffering proxy can delay).
   over demo polish
 - Production deployment
 
+## MCP Apps widget sizing — follow-ups (out of scope, tracked for later)
+
+Step 6 landed inline widgets; a later pass on `McpAppView.vue` split iframe
+sizing along the two channels the MCP Apps spec defines — the host sends the
+width budget via `containerDimensions`, the widget reports its content height
+via the `@modelcontextprotocol/ext-apps` `autoResize` `size-changed`
+notification (host clamps it, content past the cap scrolls inside the iframe).
+`payments-toolkit-mcp`'s `card-preview` widget was made fluid to match
+(container-query units + `aspect-ratio`). Four things that pass left open:
+
+| # | Item | Importance | Effort |
+|---|------|-----------|--------|
+| 1 | Seed the pre-handshake placeholder from a resource `_meta` frame hint instead of the `210px` constant | Medium | Large |
+| 2 | Handle `requestDisplayMode` (`inline` / `fullscreen` / `pip`) | Medium | Medium |
+| 3 | Don't reuse the card's `aspect-ratio` height model for content-driven widgets | Low | Small |
+| 4 | Honor a widget that wants to be narrower than the column | Low | Small |
+
+1. **Pre-handshake placeholder is a guess.** `McpAppView.vue` reserves `210px`
+   before the init handshake so the first `size-changed` doesn't pop the
+   layout, but every widget still shifts once on first render. The fix is a
+   per-widget frame hint (preferred size / aspect ratio) on the `ui://`
+   resource's `_meta`, read by the host as the initial box. Blocked upstream:
+   `@tanstack/ai`'s `UIResourcePart.meta` is reserved but unpopulated, so the
+   field has to be threaded through `payments-toolkit-mcp`'s resource
+   declaration and `payments-toolkit-agent`'s `ui-resource` forwarding first.
+   Cross-repo + upstream dependency — hence the large effort.
+
+2. **Display mode is a separate axis the host ignores.** The spec has
+   `inline` / `fullscreen` / `pip` plus a `requestDisplayMode` request;
+   `McpAppView.vue` neither advertises `availableDisplayModes` in its host
+   context nor answers the request, so a widget asking to go fullscreen gets
+   silence. Fix: host-side display-mode state, presentation CSS for the
+   non-inline modes, and a `requestDisplayMode` handler that replies with the
+   mode actually granted. Contained to this repo but real UI work.
+
+3. **`aspect-ratio` is right for the card, not for everything.** The card has
+   a fixed ID-1 shape, so `card-preview` derives its height entirely from
+   width and the host just clamps the result. A list / table / log widget
+   should instead let `autoResize` drive height freely against its content,
+   with only the host's `maxHeight` clamp. No code change today (one widget) —
+   a note for whoever adds the second widget type.
+
+4. **Can't honor a widget narrower than the column.** The host sends a fixed
+   `width` in `containerDimensions` and ignores any width the widget reports
+   back — correct for fill-the-column widgets, wrong for a small
+   confirmation-chip-style widget that wants less. Fix: send `maxWidth`
+   instead of `width`, and accept a reported width only when it's smaller
+   than what was offered. Contained to `McpAppView.vue`; speculative until
+   such a widget exists.
+
 ## Definition of done for this iteration
 
 - The chat UI runs against the local mock AG-UI endpoint and visibly
