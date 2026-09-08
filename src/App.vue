@@ -21,7 +21,12 @@ const { messages, error, isLoading, sendMessage, cancel } = useAgentChat()
 const messagesArea = useTemplateRef<InstanceType<typeof ScrollArea>>('messagesArea')
 const { isPinned, scrollToBottom } = useAutoScroll(messagesArea)
 
+// Intro state: composer sits vertically centred until the first turn, then
+// slides down to dock at the bottom (see `.chat--intro` in the styles).
+const hasStarted = ref(false)
+
 function handleSend(message: string) {
+  hasStarted.value = true
   sendMessage(message)
   // The user just spoke — always follow, even if they'd scrolled up.
   scrollToBottom()
@@ -64,7 +69,7 @@ watch(wasCancelled, (cancelled) => {
         </ScrollArea>
       </aside>
 
-      <main class="chat">
+      <main class="chat" :class="{ 'chat--intro': !hasStarted }">
         <AppIntro />
         <div class="messages">
           <ScrollArea ref="messagesArea" class="messages-scroll">
@@ -92,7 +97,16 @@ watch(wasCancelled, (cancelled) => {
             @send="handleSend"
             @stop="cancel"
           />
+          <Transition
+            enter-active-class="transition-opacity duration-300 delay-[450ms] ease-out"
+            enter-from-class="opacity-0"
+          >
+            <p v-if="hasStarted" class="text-muted-foreground ps-3 text-xs">
+              Payments Toolkit is AI and can make mistakes. Please double-check responses.
+            </p>
+          </Transition>
         </div>
+        <div class="chat-spacer" aria-hidden="true" />
       </main>
 
       <aside class="rail rail-right">
@@ -160,13 +174,49 @@ body {
   display: flex;
   flex-direction: column;
   gap: 1rem;
+  transition: padding-bottom 0.45s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Intro state: drop the extra bottom padding so the empty message area and the
+   spacer share the column below the intro. */
+.chat--intro {
+  padding-bottom: 1.5rem;
 }
 
 .messages {
   position: relative;
-  flex: 1;
+  flex: 1 1 0;
   /* Let the flex item shrink below its content so the ScrollArea scrolls. */
   min-height: 0;
+}
+
+/* Extra breathing room between the intro and the first message, once the
+   conversation has started. (Skipped in the intro state, where the message
+   area is empty and the gap would just push the centred composer down.) */
+.chat:not(.chat--intro) .messages {
+  margin-top: 2.75rem;
+}
+
+/* Before the first turn the (empty) message area and this spacer take the slack
+   above and below the composer. The spacer grows faster than the message area
+   (4 vs 1), so the composer settles above centre, a comfortable gap below the
+   intro, instead of being centred. Sending flips the class; the spacer's
+   flex-grow transitions to 0 and the message area soaks up the freed space,
+   sliding the composer down to dock. The intro stays put throughout. */
+.chat-spacer {
+  flex: 0 1 0;
+  transition: flex-grow 0.45s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.chat--intro .chat-spacer {
+  flex-grow: 4;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chat,
+  .chat-spacer {
+    transition: none;
+  }
 }
 
 .messages-scroll {

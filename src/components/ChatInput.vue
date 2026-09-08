@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useTemplateRef } from 'vue'
-import { Send, Square } from '@lucide/vue'
+import { ArrowUp, Square } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -41,37 +41,48 @@ defineExpose({ focus: () => textarea.value?.$el?.focus() })
 </script>
 
 <template>
-  <form class="flex items-end gap-2" @submit.prevent="submit">
+  <form class="relative" @submit.prevent="submit">
     <Textarea
       ref="textarea"
       v-model="draft"
       placeholder="Ask about a card number or IBAN…"
-      class="max-h-40 min-h-10 flex-1 resize-none focus-visible:border-ring focus-visible:ring-0 focus-visible:shadow-sm"
+      class="max-h-40 min-h-10 w-full resize-none py-4 pr-14 focus-visible:border-ring focus-visible:ring-0 focus-visible:shadow-sm"
       :disabled="busy"
       autofocus
       @keydown="onKeydown"
     />
-    <Tooltip v-if="busy">
-      <TooltipTrigger as-child>
-        <Button
-          type="button"
-          variant="destructive"
-          size="icon"
-          aria-label="Stop generating"
-          @click="emit('stop')"
-        >
-          <Square class="fill-current" />
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent>Stop generating</TooltipContent>
-    </Tooltip>
-    <Tooltip v-else>
-      <TooltipTrigger as-child>
-        <Button type="submit" size="icon" :disabled="!draft.trim()" aria-label="Send message">
-          <Send />
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent>Send · Enter</TooltipContent>
-    </Tooltip>
+    <div class="absolute right-2 bottom-2">
+      <Tooltip v-if="busy">
+        <TooltipTrigger as-child>
+          <Button
+            type="button"
+            variant="destructive"
+            size="icon-sm"
+            class="rounded-lg"
+            aria-label="Stop generating"
+            @click="emit('stop')"
+          >
+            <Square class="fill-current" />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>Stop generating</TooltipContent>
+      </Tooltip>
+      <Transition
+        v-else
+        enter-active-class="transition duration-150 ease-out"
+        enter-from-class="opacity-0 scale-90"
+        leave-active-class="transition duration-100 ease-in"
+        leave-to-class="opacity-0 scale-90"
+      >
+        <Tooltip v-if="draft.trim()">
+          <TooltipTrigger as-child>
+            <Button type="submit" size="icon-sm" class="rounded-lg" aria-label="Send message">
+              <ArrowUp class="size-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Send · Enter</TooltipContent>
+        </Tooltip>
+      </Transition>
+    </div>
   </form>
 </template>
