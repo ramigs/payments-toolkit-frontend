@@ -3,18 +3,23 @@ import { computed, ref, useTemplateRef, watch } from 'vue'
 import { toast } from 'vue-sonner'
 import AppIntro from './components/AppIntro.vue'
 import ChatInput from './components/ChatInput.vue'
+import LoginForm from './components/LoginForm.vue'
 import MessageList from './components/MessageList.vue'
 import SampleCards from './components/SampleCards.vue'
 import SampleIbans from './components/SampleIbans.vue'
 import SamplePrompts from './components/SamplePrompts.vue'
 import { CircleAlert } from '@lucide/vue'
 import { Alert, AlertDescription } from './components/ui/alert'
+import { Button } from './components/ui/button'
 import { ScrollArea } from './components/ui/scroll-area'
 import { Separator } from './components/ui/separator'
 import { Toaster } from './components/ui/sonner'
 import { TooltipProvider } from './components/ui/tooltip'
 import { useAgentChat } from './composables/useAgentChat'
+import { useAuth } from './composables/useAuth'
 import { useAutoScroll } from './composables/useAutoScroll'
+
+const { session, user, initializing, signOut } = useAuth()
 
 const { messages, error, isLoading, sendMessage, cancel } = useAgentChat()
 
@@ -56,7 +61,11 @@ watch(wasCancelled, (cancelled) => {
 
 <template>
   <TooltipProvider>
-    <div class="layout">
+    <!-- Access gate: hold the decision until the stored session is resolved,
+       then show the login screen or the app. -->
+    <LoginForm v-if="!initializing && !session" />
+
+    <div v-else-if="session" class="layout">
       <!-- Fixed, full-height rails. The center column stays in normal flow so
          it keeps growing the page as the conversation gets longer. -->
       <aside class="rail rail-left">
@@ -112,6 +121,11 @@ watch(wasCancelled, (cancelled) => {
       <aside class="rail rail-right">
         <ScrollArea class="rail-scroll">
           <div class="rail-content">
+            <div class="account">
+              <span class="account-email">{{ user?.email }}</span>
+              <Button variant="ghost" size="sm" @click="signOut">Sign out</Button>
+            </div>
+            <Separator />
             <SamplePrompts @ask="handleSend" />
           </div>
         </ScrollArea>
@@ -162,6 +176,21 @@ body {
   flex-direction: column;
   gap: 1.5rem;
   padding: 1.5rem 1rem;
+}
+
+.account {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.account-email {
+  overflow: hidden;
+  font-size: 0.8125rem;
+  color: #64748b;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* Full-height column: intro pinned at the top, composer at the bottom, and

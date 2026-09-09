@@ -19,6 +19,7 @@
   "dependencies": {
     "@lucide/vue": "^1.37.0",
     "@modelcontextprotocol/ext-apps": "^1.7.5",
+    "@supabase/supabase-js": "^2.116.0",
     "@tailwindcss/vite": "^4.3.3",
     "@tanstack/ai": "^0.52.0",
     "@tanstack/ai-vue": "^0.19.4",

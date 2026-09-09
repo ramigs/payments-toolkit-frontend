@@ -18,8 +18,9 @@ export default defineConfig({
     },
   },
   build: {
-    // The single app chunk (~145 kB gzipped: Vue, reka-ui, @tanstack/ai,
-    // vue-sonner) is fine for this internal tool — lift the 500 kB warning.
-    chunkSizeWarningLimit: 700,
+    // The single app chunk (~225 kB gzipped: Vue, reka-ui, @tanstack/ai,
+    // vue-sonner, @supabase/supabase-js) is fine for this internal tool —
+    // lift the 500 kB warning.
+    chunkSizeWarningLimit: 900,
   },
 })

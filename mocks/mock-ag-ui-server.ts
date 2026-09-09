@@ -255,7 +255,10 @@ function corsHeaders(): Record<string, string> {
   return {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, X-Run-Id',
+    // Authorization: the frontend sends a Supabase bearer token now. The mock
+    // doesn't verify it (offline dev needs no real session), but the preflight
+    // still has to permit the header or the browser blocks the POST.
+    'Access-Control-Allow-Headers': 'Authorization, Content-Type, X-Run-Id',
   }
 }
 
