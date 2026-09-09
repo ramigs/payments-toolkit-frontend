@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { AppBridge, PostMessageTransport } from '@modelcontextprotocol/ext-apps/app-bridge'
 
 // One MCP Apps widget: the `ui://` resource the agent forwarded on a
@@ -25,6 +25,39 @@ const props = defineProps<{
 const MAX_WIDTH = 360
 const MIN_HEIGHT = 96
 const MAX_HEIGHT_FRACTION = 0.8
+
+// The MCP-server widgets are self-contained documents (inline script/style,
+// data: URIs), so this locks the iframe down to exactly what they need. The
+// sandbox attribute already stops the widget reaching our origin (no
+// allow-same-origin — it can't read the Supabase JWT or call our API), but
+// `allow-scripts` still permits outbound requests; `connect-src 'none'` closes
+// that, so a compromised widget can't exfiltrate the card / IBAN data we feed
+// it over postMessage. If a future widget loads an asset cross-origin, widen
+// the matching directive (img-src / font-src / connect-src) to that origin.
+const CSP_META =
+  '<meta http-equiv="Content-Security-Policy" content="' +
+  [
+    "default-src 'none'",
+    "script-src 'unsafe-inline'",
+    "style-src 'unsafe-inline'",
+    'img-src data:',
+    'font-src data:',
+    "connect-src 'none'",
+    "form-action 'none'",
+    "base-uri 'none'",
+  ].join('; ') +
+  '">'
+
+function withCsp(html: string): string {
+  if (/http-equiv=["']Content-Security-Policy["']/i.test(html)) return html
+  const headOpen = html.match(/<head[^>]*>/i)
+  if (headOpen) return html.replace(headOpen[0], headOpen[0] + CSP_META)
+  const htmlOpen = html.match(/<html[^>]*>/i)
+  if (htmlOpen) return html.replace(htmlOpen[0], htmlOpen[0] + '<head>' + CSP_META + '</head>')
+  return '<head>' + CSP_META + '</head>' + html
+}
+
+const srcdoc = computed(() => (props.resource.text ? withCsp(props.resource.text) : ''))
 
 const frame = ref<HTMLIFrameElement | null>(null)
 const container = ref<HTMLElement | null>(null)
@@ -130,7 +163,8 @@ onBeforeUnmount(async () => {
       :class="{ measured }"
       :title="`${toolName} widget`"
       sandbox="allow-scripts"
-      :srcdoc="resource.text"
+      referrerpolicy="no-referrer"
+      :srcdoc="srcdoc"
       :style="{ height: `${height}px` }"
     />
   </figure>
