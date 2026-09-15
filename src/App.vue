@@ -10,6 +10,7 @@ import SampleIbans from './components/SampleIbans.vue'
 import SamplePrompts from './components/SamplePrompts.vue'
 import { CircleAlert } from '@lucide/vue'
 import { Alert, AlertDescription } from './components/ui/alert'
+import { Badge } from './components/ui/badge'
 import { Button } from './components/ui/button'
 import { ScrollArea } from './components/ui/scroll-area'
 import { Separator } from './components/ui/separator'
@@ -18,10 +19,12 @@ import { TooltipProvider } from './components/ui/tooltip'
 import { useAgentChat } from './composables/useAgentChat'
 import { useAuth } from './composables/useAuth'
 import { useAutoScroll } from './composables/useAutoScroll'
+import { useModelInfo } from './composables/useModelInfo'
 
 const { session, user, initializing, signOut } = useAuth()
 
 const { messages, error, isLoading, sendMessage, cancel } = useAgentChat()
+const { model } = useModelInfo()
 
 const messagesArea = useTemplateRef<InstanceType<typeof ScrollArea>>('messagesArea')
 const { isPinned, scrollToBottom } = useAutoScroll(messagesArea)
@@ -108,14 +111,17 @@ watch(wasCancelled, (cancelled) => {
             @send="handleSend"
             @stop="cancel"
           />
-          <Transition
-            enter-active-class="transition-opacity duration-300 delay-[450ms] ease-out"
-            enter-from-class="opacity-0"
-          >
-            <p v-if="hasStarted" class="text-muted-foreground ps-3 text-xs">
-              Payments Toolkit is AI and can make mistakes. Please double-check responses.
-            </p>
-          </Transition>
+          <div class="composer-footer">
+            <Transition
+              enter-active-class="transition-opacity duration-300 delay-[450ms] ease-out"
+              enter-from-class="opacity-0"
+            >
+              <p v-if="hasStarted" class="text-muted-foreground ps-3 text-xs">
+                Payments Toolkit is AI and can make mistakes. Please double-check responses.
+              </p>
+            </Transition>
+            <Badge v-if="model" variant="secondary" class="model-badge">{{ model }}</Badge>
+          </div>
         </div>
         <div class="chat-spacer" aria-hidden="true" />
       </main>
@@ -280,6 +286,18 @@ body {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+}
+
+.composer-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.model-badge {
+  margin-inline-start: auto;
+  color: #64748b;
 }
 
 /* Not enough room for 720px of chat between two 280px rails — drop the rails
