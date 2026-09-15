@@ -1,4 +1,4 @@
-import { onBeforeUnmount, onMounted, ref, type Ref } from 'vue'
+import { onBeforeUnmount, ref, watch, type Ref } from 'vue'
 
 type MaybeComponent = HTMLElement | { $el?: unknown } | null | undefined
 
@@ -56,21 +56,34 @@ export function useAutoScroll(container: Ref<MaybeComponent>, options: Options =
     })
   }
 
-  onMounted(() => {
-    viewport = resolveViewport()
+  function detach(): void {
+    viewport?.removeEventListener('scroll', onScroll)
+    mutation?.disconnect()
+    mutation = null
+    cancelAnimationFrame(frame)
+    viewport = null
+  }
+
+  function attach(): void {
+    const next = resolveViewport()
+    if (next === viewport) return
+    detach()
+    viewport = next
     if (!viewport) return
     viewport.addEventListener('scroll', onScroll, { passive: true })
     // Catches streamed text, new turns, tool traces, and late-rendering widgets.
     mutation = new MutationObserver(followIfPinned)
     mutation.observe(viewport, { childList: true, subtree: true, characterData: true })
     scrollToBottom()
-  })
+  }
 
-  onBeforeUnmount(() => {
-    viewport?.removeEventListener('scroll', onScroll)
-    mutation?.disconnect()
-    cancelAnimationFrame(frame)
-  })
+  // `container` sits behind the login gate: it's still null when this
+  // component first mounts (onMounted would fire too early to find the
+  // viewport), and only resolves to a real element once the session
+  // arrives and the ScrollArea renders. Watch instead of mounting once.
+  watch(container, attach, { immediate: true, flush: 'post' })
+
+  onBeforeUnmount(detach)
 
   return { isPinned, scrollToBottom }
 }

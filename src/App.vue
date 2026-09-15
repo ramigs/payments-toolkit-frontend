@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, useTemplateRef, watch } from 'vue'
+import { computed, nextTick, ref, useTemplateRef, watch } from 'vue'
 import { toast } from 'vue-sonner'
 import AppIntro from './components/AppIntro.vue'
 import ChatInput from './components/ChatInput.vue'
@@ -30,10 +30,12 @@ const { isPinned, scrollToBottom } = useAutoScroll(messagesArea)
 // slides down to dock at the bottom (see `.chat--intro` in the styles).
 const hasStarted = ref(false)
 
-function handleSend(message: string) {
+async function handleSend(message: string) {
   hasStarted.value = true
   sendMessage(message)
-  // The user just spoke — always follow, even if they'd scrolled up.
+  // The user just spoke — always follow, even if they'd scrolled up. Wait a
+  // tick so the DOM has the new message before we measure scrollHeight.
+  await nextTick()
   scrollToBottom()
 }
 
