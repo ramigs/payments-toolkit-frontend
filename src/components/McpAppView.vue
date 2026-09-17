@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { AppBridge, PostMessageTransport } from '@modelcontextprotocol/ext-apps/app-bridge'
+import { name as pkgName, version as pkgVersion } from '../../package.json'
 
 // One MCP Apps widget: the `ui://` resource the agent forwarded on a
 // `ui-resource` event (see payments-toolkit-agent's AgUiTranslator.uiResource),
@@ -111,7 +112,7 @@ onMounted(async () => {
 
   bridge = new AppBridge(
     null,
-    { name: 'payments-toolkit-frontend', version: '0.0.0' },
+    { name: pkgName, version: pkgVersion },
     {},
     // Seed the box in the init handshake so the widget's first paint already
     // knows its width budget instead of laying out at some default and reflowing.
