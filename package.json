@@ -1,12 +1,11 @@
 {
   "name": "payments-toolkit-frontend",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "packageManager": "pnpm@10.20.0",
   "scripts": {
     "dev": "vite",
-    "mock": "node mocks/mock-ag-ui-server.ts",
     "build": "run-p type-check \"build-only {@}\" --",
     "preview": "vite preview",
     "build-only": "vite build",

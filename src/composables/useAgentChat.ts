@@ -3,9 +3,8 @@ import { useChat, fetchServerSentEvents } from '@tanstack/ai-vue'
 import { useAuth } from './useAuth'
 
 // payments-toolkit-agent's /chat now speaks real AG-UI (see that repo's
-// PLAN.md, step 7 fast-follow). Point VITE_AGENT_CHAT_URL at the mock on
-// :8787 (`pnpm run mock`) for offline frontend work. The cancel side-channel
-// is derived from this as `<url>/<runId>/cancel`.
+// PLAN.md, step 7 fast-follow). The cancel side-channel is derived from this
+// as `<url>/<runId>/cancel`.
 const AGENT_CHAT_URL = import.meta.env.VITE_AGENT_CHAT_URL
 
 export function useAgentChat() {
