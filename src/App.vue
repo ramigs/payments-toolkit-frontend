@@ -1,10 +1,12 @@
 <script setup lang="ts">
+import { useMediaQuery } from '@vueuse/core'
 import { computed, nextTick, ref, useTemplateRef, watch } from 'vue'
 import { toast } from 'vue-sonner'
 import AppIntro from './components/AppIntro.vue'
 import ChatInput from './components/ChatInput.vue'
 import LoginForm from './components/LoginForm.vue'
 import MessageList from './components/MessageList.vue'
+import MobileHeader from './components/MobileHeader.vue'
 import SampleCards from './components/SampleCards.vue'
 import SampleIbans from './components/SampleIbans.vue'
 import SamplePrompts from './components/SamplePrompts.vue'
@@ -20,6 +22,11 @@ import { useAgentChat } from './composables/useAgentChat'
 import { useAuth } from './composables/useAuth'
 import { useAutoScroll } from './composables/useAutoScroll'
 import { useModelInfo } from './composables/useModelInfo'
+
+// Below this, there isn't room for the 720px chat column between two 280px
+// rails (see `.layout` below) — swap the rails for a MobileHeader with the
+// same samples/sign-out behind sheets instead of stacking them in flow.
+const isMobile = useMediaQuery('(max-width: 1280px)')
 
 const { session, user, initializing, signOut } = useAuth()
 
@@ -69,10 +76,18 @@ watch(wasCancelled, (cancelled) => {
        then show the login screen or the app. -->
     <LoginForm v-if="!initializing && !session" />
 
-    <div v-else-if="session" class="layout">
+    <div v-else-if="session" class="layout" :class="{ 'layout--mobile': isMobile }">
+      <MobileHeader
+        v-if="isMobile"
+        :user-email="user?.email"
+        @pick="setDraft"
+        @ask="handleSend"
+        @sign-out="signOut"
+      />
+
       <!-- Fixed, full-height rails. The center column stays in normal flow so
          it keeps growing the page as the conversation gets longer. -->
-      <aside class="rail rail-left">
+      <aside v-else class="rail rail-left">
         <ScrollArea class="rail-scroll">
           <div class="rail-content">
             <SampleCards @pick="setDraft" />
@@ -125,7 +140,7 @@ watch(wasCancelled, (cancelled) => {
         <div class="chat-spacer" aria-hidden="true" />
       </main>
 
-      <aside class="rail rail-right">
+      <aside v-if="!isMobile" class="rail rail-right">
         <ScrollArea class="rail-scroll">
           <div class="rail-content">
             <div class="account">
@@ -299,26 +314,31 @@ body {
   color: #64748b;
 }
 
-/* Not enough room for 720px of chat between two 280px rails — drop the rails
-   back into flow and let the page scroll normally. */
-@media (max-width: 1280px) {
-  .layout {
-    padding: 0;
-  }
+/* Not enough room for 720px of chat between two 280px rails — MobileHeader
+   replaces both (see isMobile in the script) and the page scrolls normally. */
+.layout--mobile {
+  padding: 0;
+}
 
-  .rail {
-    position: static;
-    height: auto;
-    width: auto;
-  }
+.layout--mobile .chat {
+  height: auto;
+  min-height: 100dvh;
+}
 
-  .chat {
-    height: auto;
-    min-height: 100dvh;
-  }
+/* Desktop's 5rem clears the fixed-height column's bottom edge; on mobile the
+   column just scrolls with the page, so that much reserved space only
+   shrinks the visible message list for no reason. */
+.layout--mobile .chat:not(.chat--intro) {
+  padding-bottom: 3rem;
+}
 
-  .messages {
-    min-height: 0;
-  }
+/* Same story for the extra gap above the first message — trim it to reclaim
+   more of the (already tight) mobile viewport. */
+.layout--mobile .chat:not(.chat--intro) .messages {
+  margin-top: 1rem;
+}
+
+.layout--mobile .messages {
+  min-height: 0;
 }
 </style>

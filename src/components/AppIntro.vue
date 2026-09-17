@@ -6,7 +6,7 @@
       <strong>IBANs</strong> (format, country length, checksum) by running real validators.
     </p>
     <p class="hint">
-      Pick a sample from the left or a starter question from the right, or type your own below.
+      Pick a sample card, IBAN, or starter question, or type your own below.
     </p>
   </section>
 </template>
