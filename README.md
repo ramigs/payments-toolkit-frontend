@@ -18,14 +18,6 @@ Vue client (`@tanstack/ai-vue`), talking to
 - [pnpm](https://pnpm.io)
 - A [Supabase](https://supabase.com) account and project, for the login gate
 
-Also needs
-[`payments-toolkit-agent`](https://github.com/ramigs/payments-toolkit-agent) set
-up and its `pnpm run start:http` running locally (see that repo's README), which
-in turn spawns
-[`payments-toolkit-mcp`](https://github.com/ramigs/payments-toolkit-mcp) as a
-child process — build it first (`pnpm run build`, which also builds the MCP Apps
-widgets this frontend renders).
-
 ## Setup
 
 ```bash
@@ -50,8 +42,10 @@ Then fill in `.env.local`:
 
 ## Usage
 
-`VITE_AGENT_CHAT_URL` points at `payments-toolkit-agent`'s `/chat`. Run it
-separately, from that repo:
+First run `payments-toolkit-agent` (see that repo's README) — which in turn
+spawns [`payments-toolkit-mcp`](https://github.com/ramigs/payments-toolkit-mcp)
+as a child process, so build that first too (`pnpm run build`, which also
+builds the MCP Apps widgets this frontend renders):
 
 ```bash
 pnpm run start:http
