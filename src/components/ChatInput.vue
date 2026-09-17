@@ -67,22 +67,26 @@ defineExpose({ focus: () => textarea.value?.$el?.focus() })
         </TooltipTrigger>
         <TooltipContent>Stop generating</TooltipContent>
       </Tooltip>
-      <Transition
-        v-else
-        enter-active-class="transition duration-150 ease-out"
-        enter-from-class="opacity-0 scale-90"
-        leave-active-class="transition duration-100 ease-in"
-        leave-to-class="opacity-0 scale-90"
-      >
-        <Tooltip v-if="draft.trim()">
-          <TooltipTrigger as-child>
-            <Button type="submit" size="icon-sm" class="rounded-lg" aria-label="Send message">
-              <ArrowUp class="size-4" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>Send · Enter</TooltipContent>
-        </Tooltip>
-      </Transition>
+      <!-- Kept always-mounted (not v-if) and animated via CSS classes rather
+           than <Transition>: Tooltip's root (reka-ui's TooltipRoot) renders a
+           fragment — trigger plus a teleported TooltipContent — not a single
+           element, which <Transition> can't animate ("non-element root node"
+           Vue warning). -->
+      <Tooltip v-else>
+        <TooltipTrigger as-child>
+          <Button
+            type="submit"
+            size="icon-sm"
+            class="rounded-lg transition duration-150 ease-out"
+            :class="draft.trim() ? 'scale-100 opacity-100' : 'scale-90 opacity-0'"
+            :disabled="!draft.trim()"
+            aria-label="Send message"
+          >
+            <ArrowUp class="size-4" />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>Send · Enter</TooltipContent>
+      </Tooltip>
     </div>
   </form>
 </template>
