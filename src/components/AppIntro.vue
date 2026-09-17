@@ -1,7 +1,7 @@
 <template>
   <section class="intro">
     <p class="lede">
-      A validation assistant for payment details. Ask in plain English — it checks
+      A validation assistant for card numbers and IBANs. Ask in plain English — it checks
       <strong>card numbers</strong> (Luhn checksum and card network) and
       <strong>IBANs</strong> (format, country length, checksum) by running real validators.
     </p>

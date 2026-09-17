@@ -1,31 +1,30 @@
 # payments-toolkit-frontend
 
-A Vue 3 SPA, built on [TanStack AI](https://tanstack.com/ai)'s Vue client
-(`@tanstack/ai-vue`), that talks to
-[payments-toolkit-agent](https://github.com/ramigs/payments-toolkit-agent)
-over [AG-UI](https://ag-ui.com) and shows an agent's tool calls live in the
-browser as they happen — "🔧 calling `validate_iban(iban: DE89…)` →
-`valid: true`" — instead of a spinner that resolves to a final answer. See
-[PLAN.md](./PLAN.md) for the full step-by-step walkthrough, including the
-reasoning behind each design decision (and a couple of interesting bugs
-found along the way).
+Payments Toolkit is a validation assistant for **card numbers** and **IBANs**.
+Ask in plain English — it checks card numbers (Luhn checksum and card network)
+and IBANs (format, country length, checksum) by running real validators.
 
-This is step 2 of 2 in a three-repo series:
-[payments-toolkit-mcp](https://github.com/ramigs/payments-toolkit-mcp) (the
-MCP server exposing the validation tools) →
-[payments-toolkit-agent](https://github.com/ramigs/payments-toolkit-agent)
-(the ADK-based agent backend, step 1) → this repo (the frontend, step 2).
+Learn more: [What I learned building my first end-to-end AI
+app](https://ramigs.dev/blog/what-i-learned-building-my-first-end-to-end-ai-app/)
+
+This frontend is a Vue 3 SPA built on [TanStack AI](https://tanstack.com/ai)'s
+Vue client (`@tanstack/ai-vue`), talking to
+[payments-toolkit-agent](https://github.com/ramigs/payments-toolkit-agent) over
+[AG-UI](https://ag-ui.com).
 
 ## Prerequisites
 
 - Node.js `^22.18.0 || >=24.12.0` (`.nvmrc` pins v24)
 - [pnpm](https://pnpm.io)
+- A [Supabase](https://supabase.com) account and project, for the login gate
 
-Running against the real backend also needs
-[`payments-toolkit-agent`](https://github.com/ramigs/payments-toolkit-agent)
-set up and its `pnpm run start:http` running locally (see that repo's
-README) — or use the local mock described below to work on the UI without
-it.
+Also needs
+[`payments-toolkit-agent`](https://github.com/ramigs/payments-toolkit-agent) set
+up and its `pnpm run start:http` running locally (see that repo's README), which
+in turn spawns
+[`payments-toolkit-mcp`](https://github.com/ramigs/payments-toolkit-mcp) as a
+child process — build it first (`pnpm run build`, which also builds the MCP Apps
+widgets this frontend renders).
 
 ## Setup
 
@@ -33,7 +32,30 @@ it.
 pnpm install
 ```
 
+### Environment variables
+
+```bash
+cp .env.example .env.local
+```
+
+Then fill in `.env.local`:
+
+- `VITE_AGENT_CHAT_URL` — `payments-toolkit-agent`'s `/chat` endpoint, e.g.
+  `http://localhost:3001/chat` for its local `pnpm run start:http`.
+- `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` — from your Supabase project's
+  Project Settings → API. The anon key is browser-safe and ships in the bundle —
+  never put the service_role/secret key here.
+
+`.env.local` is gitignored.
+
 ## Usage
+
+`VITE_AGENT_CHAT_URL` points at `payments-toolkit-agent`'s `/chat`. Run it
+separately, from that repo:
+
+```bash
+pnpm run start:http
+```
 
 Start the dev server:
 
@@ -41,95 +63,37 @@ Start the dev server:
 pnpm dev
 ```
 
-By default `src/composables/useAgentChat.ts` points at the real backend,
-`http://localhost:3001/chat` (`payments-toolkit-agent`'s `pnpm run
-start:http`, run separately). Type a prompt like "Is
-DE89370400440532013000 a valid IBAN?" or "Check this card and tell me the
-network: 4111111111111111" — the agent's tool calls, arguments, and results
-render live, followed by its final answer.
+Type a prompt like "Is DE89370400440532013000 a valid IBAN?" or "Check this card
+and tell me the network: 4111111111111111" — the agent's tool calls, arguments,
+and results render live, followed by its final answer.
 
-While a turn is streaming, the send button becomes a **Stop** button. It
-aborts the SSE fetch and also calls the backend's
-`POST /chat/:runId/cancel` side-channel, so the model request is killed
-even if a proxy keeps the socket open (see `payments-toolkit-agent`'s
-PLAN.md, step 10).
-
-### Running against the local mock instead
-
-A tiny hand-rolled AG-UI SSE server (`mocks/mock-ag-ui-server.ts`) stands
-in for the real backend — useful for working on the UI without a Gemini
-API key or the agent/MCP processes running. It replays four fixed
-scenarios based on a keyword in the prompt:
-
-- `iban` → a valid-IBAN turn with a `validate_iban` tool call
-- `type` / `network` → a `detect_card_type` turn that also renders an
-  [MCP Apps](https://github.com/modelcontextprotocol) card-preview widget
-  (forwards the real built widget from `../payments-toolkit-mcp/dist/ui/`)
-- `card` → an invalid-card turn with a `validate_card_number` tool call
-- anything else → a declined/out-of-scope turn with no tool call
-
-It also mirrors the real backend's cancel surface
-(`POST /chat/:runId/cancel` plus client-disconnect detection), so the Stop
-button works against the mock too.
-
-```bash
-pnpm run mock
-```
-
-Then change `AGENT_CHAT_URL` in `src/composables/useAgentChat.ts` from
-`http://localhost:3001/chat` to `http://localhost:8787/chat` and restart
-the dev server (or just edit and save — Vite hot-reloads it).
-
-### Type-checking, linting, formatting
+### Type-checking, linting, formatting, building
 
 ```bash
 pnpm run type-check
 pnpm run lint     # oxlint + eslint, both --fix
 pnpm run format   # prettier --write
+pnpm run build    # type-checks, then builds to dist/
+pnpm run preview  # serves that build locally
 ```
 
-## How the tool-call visibility works
+## TODO
 
-`useAgentChat.ts` wraps `@tanstack/ai-vue`'s `useChat`, pointed at an AG-UI
-SSE endpoint via `fetchServerSentEvents`. As tool-call and text events
-stream in, `@tanstack/ai`'s client assembles them into typed message
-parts — `tool-call`, `tool-result`, `text` — on the current assistant
-message. `ToolCallTrace.vue` renders the `tool-call`/`tool-result` parts
-live, pairing each call with its result by `toolCallId`;
-`MessageList.vue` renders the accompanying `text` parts as the
-conversation.
+### MCP Apps display modes
 
-When a tool advertises an MCP Apps UI widget, the backend forwards it as a
-`CUSTOM` `ui-resource` event, which `@tanstack/ai` reconciles into a
-`ui-resource` message part. `McpAppView.vue` hosts that widget in a
-sandboxed iframe and runs the `@modelcontextprotocol/ext-apps` init
-handshake, then feeds the tool result in so the widget can paint itself.
+- **Handle `requestDisplayMode` (`inline` / `fullscreen` / `pip`).** Display
+  mode is a separate axis the host currently ignores. The MCP Apps spec has
+  `inline` / `fullscreen` / `pip` plus a `requestDisplayMode` request;
+  `McpAppView.vue` neither advertises `availableDisplayModes` in its host
+  context nor answers the request, so a widget asking to go fullscreen gets
+  silence. Fix: host-side display-mode state, presentation CSS for the
+  non-inline modes, and a `requestDisplayMode` handler that replies with the
+  mode actually granted. Contained to this repo, but real UI work. (Importance:
+  medium, effort: medium.)
 
-## Project structure
+### Session storage hardening
 
-```
-src/
-  App.vue                     # wires ChatInput + MessageList together via useAgentChat
-  components/
-    ChatInput.vue              # prompt box; send button becomes Stop while a turn streams
-    MessageList.vue            # renders the conversation (user + agent turns)
-    ToolCallTrace.vue          # live tool-call visibility: name, args, result, per message
-    McpAppView.vue             # hosts an MCP Apps `ui://` widget in a sandboxed iframe
-  composables/
-    useAgentChat.ts             # wraps @tanstack/ai-vue's useChat, points at the backend (or mock)
-mocks/
-  mock-ag-ui-server.ts          # local dev server emitting hand-written AG-UI SSE events
-```
-
-## Scope
-
-This is a deliberate first iteration, not an unfinished one:
-
-- No multi-turn conversation persistence — the backend is single-turn per
-  request, so this frontend is too
-- No production deployment — local-first, matching the backend's own
-  scope for this phase
-- No auth/guardrails — same deferral as the backend
-
-See the "Fast-follows" section of [PLAN.md](./PLAN.md) for what's tracked
-for later.
+- **No BFF / HttpOnly cookie yet.** The Supabase session (and its bearer token)
+  currently lives in `localStorage`, readable by any JS on the page — fine for
+  now, but worth revisiting for defense-in-depth once there's a
+  backend-for-frontend to move the session into an HttpOnly cookie instead.
