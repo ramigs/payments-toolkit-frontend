@@ -91,7 +91,11 @@ function pushContainerDimensions() {
 function pushToolData() {
   if (!bridge || !ready) return
   if (props.toolInput) {
-    void bridge.sendToolInput({ arguments: props.toolInput })
+    // props.toolInput can be a Vue-reactive Proxy (it's read off
+    // chat.messages, which @tanstack/ai-vue wraps in a ref) — postMessage's
+    // structured-clone algorithm throws DataCloneError on a Proxy regardless
+    // of its contents, so round-trip through JSON to get a plain object.
+    void bridge.sendToolInput({ arguments: JSON.parse(JSON.stringify(props.toolInput)) })
   }
   if (props.toolResult) {
     void bridge.sendToolResult({
