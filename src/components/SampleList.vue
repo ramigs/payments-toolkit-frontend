@@ -28,7 +28,7 @@ withDefaults(
 )
 
 const emit = defineEmits<{
-  // A row was clicked — its value should be appended to the chat draft.
+  // A row was clicked — its value replaces the chat draft.
   pick: [value: string]
 }>()
 </script>

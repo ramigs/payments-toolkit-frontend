@@ -47,9 +47,8 @@ async function handleSend(message: string) {
 const draft = ref('')
 const chatInput = useTemplateRef<InstanceType<typeof ChatInput>>('chatInput')
 
-function appendToDraft(value: string) {
-  const current = draft.value.trimEnd()
-  draft.value = current ? `${current} ${value}` : value
+function setDraft(value: string) {
+  draft.value = value
   chatInput.value?.focus()
 }
 
@@ -76,9 +75,9 @@ watch(wasCancelled, (cancelled) => {
       <aside class="rail rail-left">
         <ScrollArea class="rail-scroll">
           <div class="rail-content">
-            <SampleCards @pick="appendToDraft" />
+            <SampleCards @pick="setDraft" />
             <Separator />
-            <SampleIbans @pick="appendToDraft" />
+            <SampleIbans @pick="setDraft" />
           </div>
         </ScrollArea>
       </aside>
