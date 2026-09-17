@@ -12,6 +12,21 @@ Vue client (`@tanstack/ai-vue`), talking to
 [payments-toolkit-agent](https://github.com/ramigs/payments-toolkit-agent) over
 [AG-UI](https://ag-ui.com).
 
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+**Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
+
+- [Prerequisites](#prerequisites)
+- [Setup](#setup)
+  - [Environment variables](#environment-variables)
+- [Usage](#usage)
+  - [Type-checking, linting, formatting, building](#type-checking-linting-formatting-building)
+- [TODO](#todo)
+  - [MCP Apps display modes](#mcp-apps-display-modes)
+  - [Session storage hardening](#session-storage-hardening)
+
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
 ## Prerequisites
 
 - Node.js `^22.18.0 || >=24.12.0` (`.nvmrc` pins v24)
@@ -69,6 +84,7 @@ pnpm run lint     # oxlint + eslint, both --fix
 pnpm run format   # prettier --write
 pnpm run build    # type-checks, then builds to dist/
 pnpm run preview  # serves that build locally
+pnpm run toc      # regenerates this README's table of contents
 ```
 
 ## TODO
